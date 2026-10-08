@@ -316,7 +316,7 @@ $("main").addEventListener("change",e=>{
  paletteControl.value="";
 });
 $("main").onclick=e=>{
- const b=e.target.closest("[data-action]"),obj=chosen();if(!obj)return;
+ const b=e.target.closest("[data-action],[data-format]"),obj=chosen();if(!obj)return;
  if(e.target.id==="quick"){document.body.classList.toggle("quick");render();return;}
  if(!b)return;
  if(b.dataset.format){applyFormat(b.closest(".note")?.querySelector(".rich-editor"),b.dataset.format);return;}
