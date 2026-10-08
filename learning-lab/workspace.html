@@ -15,6 +15,20 @@ dialog{background:#15233a;color:var(--ink);border:1px solid #527088;border-radiu
 .quick aside{display:none}.quick .shell{grid-template-columns:1fr}.quick main{max-width:1000px}
 @media(max-width:820px){.shell{display:block}aside{max-height:285px;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:19px 15px 65px}header{padding:0 10px}.brand{font-size:12px}.sync{max-width:170px}.review{grid-template-columns:1fr}}
 .sourcebox{margin:16px 0;padding:15px;border:1px solid var(--line);border-radius:14px;background:#17283b}.sourcebox label{flex:1;min-width:180px;color:var(--muted);font-size:11px}.sourcebox input{display:block;width:100%;margin:7px 0 11px}.sourcebox a{font-size:12px;font-weight:750}
+
+/* Inline note formatting: light, keyboard-friendly and high contrast. */
+.richbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:0 0 9px;padding:7px;background:#172a40;border:1px solid #35516b;border-radius:11px}
+.richbar button{padding:5px 9px;min-width:33px;height:31px;font-size:13px;border-color:transparent;background:transparent;border-radius:7px}
+.richbar button:hover,.richbar button:focus-visible{background:#35536b}
+.richbar button.on{background:#3b5b72;border:1px solid #78b6c2}
+.richbar select{width:auto;min-width:100px;max-width:145px;padding:6px 8px;font-size:12px;background:#102339}
+.richbar .separator{width:1px;height:22px;background:#45617b;margin:0 3px}
+.richbar .shortcut{margin-left:auto;color:#819ab3;font-size:10px;white-space:nowrap}
+.rich-editor{background:#102037;border:1px solid #3c536c;border-radius:10px;color:var(--ink);font-size:14px;line-height:1.7;padding:12px;min-height:105px;outline:none;overflow-wrap:anywhere;white-space:pre-wrap}
+.rich-editor:focus{border-color:var(--a);box-shadow:0 0 0 2px #76dec81b}
+.rich-editor:empty:before{content:attr(data-placeholder);pointer-events:none;color:#8295b0}
+.rich-editor mark{color:#eef6ff}
+@media(max-width:760px){.richbar .shortcut{display:none}.richbar select{min-width:95px}}
 </style><script src="https://accounts.google.com/gsi/client" async defer></script><script src="https://apis.google.com/js/api.js" async defer></script></head>
 <body>
 <header><a href="./" class="brand">← INTERACTIVE<b>LAB</b> / LEARNING</a><div class="right"><span id="sync" class="sync">Google Drive не підключено</span><button id="connect" class="primary">☁ Підключити</button><button id="settingsBtn">⚙</button></div></header>
@@ -49,6 +63,103 @@ const topicNames=["Основи COP","Процедурні текстури","PB
 const blank=()=>({schema:1,title:project.name,weeks:(thematic?(projectId==="copernicus"?topicNames:["Основи","Матеріали","Експерименти"]):Array.from({length:8},(_,i)=>"Тиждень "+(i+1))).map(name=>({id:id(),name,lessons:[]}))});
 const types={note:"Нотатка",question:"Питання",recipe:"Lighting Recipe",experiment:"Експеримент"};
 const validURL=u=>{try{return ["https:","http:"].includes(new URL(u).protocol);}catch(e){return false;}};
+/* Rich text is an optional addition to schema:1. n.text remains plain for search/backups. */
+const textColors={"#edf5ff":"Звичайний","#ffd166":"Жовтий","#83deff":"Блакитний","#9ff3a5":"Зелений","#f7a3d7":"Рожевий"};
+const highlightColors={"#715522":"Золотиста","#275975":"Синя","#45633b":"Зелена","#604871":"Фіолетова"};
+const allowedColors=new Set([...Object.keys(textColors),...Object.keys(highlightColors)]);
+const colorHex=value=>{
+ if(!value)return null;
+ let v=String(value).trim().toLowerCase();
+ if(/^#[0-9a-f]{6}$/.test(v))return allowedColors.has(v)?v:null;
+ const m=/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(?:1|1\.0))?\s*\)$/.exec(v);
+ if(!m)return null;
+ const rgb=m.slice(1,4).map(Number);
+ if(rgb.some(n=>n>255))return null;
+ v="#"+rgb.map(n=>n.toString(16).padStart(2,"0")).join("");
+ return allowedColors.has(v)?v:null;
+};
+const sanitizeRich=html=>{
+ const src=document.createElement("template");
+ src.innerHTML=String(html||"");
+ const out=document.createElement("div");
+ const disallowed=new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","SVG","MATH","NOSCRIPT","FORM","INPUT","TEXTAREA","BUTTON","IMG","VIDEO","AUDIO","LINK","META"]);
+ const tags={B:"strong",STRONG:"strong",I:"em",EM:"em",U:"u",S:"s",STRIKE:"s",DEL:"s",MARK:"mark",BR:"br",P:"div",DIV:"div"};
+ const walk=(node,dest)=>{
+  if(node.nodeType===Node.TEXT_NODE){dest.appendChild(document.createTextNode(node.textContent||""));return;}
+  if(node.nodeType!==Node.ELEMENT_NODE||disallowed.has(node.nodeName))return;
+  const tag=tags[node.nodeName];
+  if(tag==="br"){dest.appendChild(document.createElement("br"));return;}
+  let wrapper;
+  if(tag)wrapper=document.createElement(tag);
+  else if(["SPAN","FONT"].includes(node.nodeName)){
+   const fg=colorHex(node.style?.color||node.getAttribute("color"));
+   const bg=colorHex(node.style?.backgroundColor);
+   if(fg||bg){
+    wrapper=document.createElement("span");
+    if(fg&&Object.prototype.hasOwnProperty.call(textColors,fg))wrapper.style.color=fg;
+    if(bg&&Object.prototype.hasOwnProperty.call(highlightColors,bg))wrapper.style.backgroundColor=bg;
+    if(!wrapper.hasAttribute("style"))wrapper=null;
+   }
+  }
+  const target=wrapper||dest;
+  for(const child of Array.from(node.childNodes))walk(child,target);
+  if(wrapper)dest.appendChild(wrapper);
+ };
+ for(const child of Array.from(src.content.childNodes))walk(child,out);
+ return out.innerHTML;
+};
+const noteHTML=n=>n.html?sanitizeRich(n.html):esc(n.text||"").replace(/\r\n?|\n/g,"<br>");
+const palette=(kind,choices,label)=>'<select data-palette="'+kind+'" title="'+label+'" aria-label="'+label+'"><option value="">'+label+'</option>'+
+ Object.entries(choices).map(([hex,name])=>'<option value="'+hex+'">'+name+'</option>').join("")+'</select>';
+const noteToolbar=()=>'<div class="richbar" role="toolbar" aria-label="Форматування тексту">'+
+ '<button type="button" data-format="bold" aria-label="Напівжирний" title="Напівжирний (Ctrl+B)"><b>B</b></button>'+
+ '<button type="button" data-format="italic" aria-label="Курсив" title="Курсив (Ctrl+I)"><i>I</i></button>'+
+ '<button type="button" data-format="underline" aria-label="Підкреслений" title="Підкреслений (Ctrl+U)"><u>U</u></button>'+
+ '<button type="button" data-format="strikeThrough" aria-label="Закреслений" title="Закреслений (Ctrl+Shift+X / Alt+Shift+5)"><s>S</s></button>'+
+ '<span class="separator"></span>'+palette("foreColor",textColors,"Колір тексту")+palette("hiliteColor",highlightColors,"Підсвітка")+
+ '<button type="button" data-format="removeFormat" aria-label="Прибрати форматування" title="Прибрати форматування виділення">Очистити</button>'+
+ '<span class="shortcut">Ctrl+B / I / U · Ctrl+Shift+X</span></div>';
+let richSelection={noteId:null,range:null};
+const selectionEditor=()=>{
+ const selection=window.getSelection();
+ if(!selection||!selection.rangeCount)return null;
+ const node=selection.anchorNode;
+ const el=node?.nodeType===1?node:node?.parentElement;
+ const editor=el?.closest?.(".rich-editor");
+ if(!editor||!editor.contains(selection.focusNode))return null;
+ return editor;
+};
+const rememberRichSelection=()=>{
+ const editor=selectionEditor();
+ if(!editor)return;
+ richSelection={noteId:editor.dataset.note,range:window.getSelection().getRangeAt(0).cloneRange()};
+};
+const rememberAfterCommand=editor=>{
+ const selection=window.getSelection();
+ if(selection?.rangeCount)richSelection={noteId:editor.dataset.note,range:selection.getRangeAt(0).cloneRange()};
+};
+const saveRichNote=editor=>{
+ const info=chosen();if(!info)return;
+ const n=info.l.notes.find(n=>n.id===editor.dataset.note);if(!n)return;
+ n.html=sanitizeRich(editor.innerHTML);
+ n.text=editor.innerText.replace(/\r/g,"");
+ changed();
+};
+const applyFormat=(editor,command,value)=>{
+ if(!editor)return;
+ editor.focus();
+ const sel=window.getSelection();
+ if(richSelection.noteId===editor.dataset.note&&richSelection.range){
+  try{sel.removeAllRanges();sel.addRange(richSelection.range.cloneRange());}catch(e){}
+ }
+ if(["foreColor","hiliteColor"].includes(command)&&!allowedColors.has(value))return;
+ if(!["bold","italic","underline","strikeThrough","removeFormat","foreColor","hiliteColor"].includes(command))return;
+ const done=document.execCommand(command,false,value||null);
+ if(!done&&command==="hiliteColor")document.execCommand("backColor",false,value);
+ saveRichNote(editor);
+ rememberAfterCommand(editor);
+};
+document.addEventListener("selectionchange",rememberRichSelection);
 let course=blank(),active="",mode="notes",access="",fileId="",connected=false,dirty=false,saving=false,revision=0,saveTimer=0,picNote="",imageURLs=new Map();
 const sync=(text,kind="")=>{$("sync").textContent=text;$("sync").className="sync "+kind;};
 const toast=text=>{const x=$("toast");x.textContent=text;x.className="toast show";setTimeout(()=>x.className="toast",3500);};
@@ -154,7 +265,7 @@ async function showImages(){
   try{const blob=await(await request("files/"+encodeURIComponent(key)+"?alt=media")).blob(),url=URL.createObjectURL(blob);imageURLs.set(key,url);if(img.isConnected)img.src=url;}catch(e){console.error(e);}
  }
 }
-const card=n=>'<section class="note"><div class="notehead"><span class="pill '+esc(n.type)+'">'+esc(types[n.type]||"Нотатка")+'</span><span class="help">'+esc(n.time)+'</span><span class="grow"></span><button class="ghost mini danger" data-action="remove" data-id="'+esc(n.id)+'">Видалити</button></div><textarea data-note="'+esc(n.id)+'" data-field="text" placeholder="Що варто запам’ятати з уроку?">'+esc(n.text)+'</textarea>'+
+const card=n=>'<section class="note"><div class="notehead"><span class="pill '+esc(n.type)+'">'+esc(types[n.type]||"Нотатка")+'</span><span class="help">'+esc(n.time)+'</span><span class="grow"></span><button class="ghost mini danger" data-action="remove" data-id="'+esc(n.id)+'">Видалити</button></div>'+noteToolbar()+'<div class="rich-editor" contenteditable="true" spellcheck="true" role="textbox" aria-label="Текст нотатки" aria-multiline="true" data-placeholder="Що варто запам’ятати з уроку?" data-note="'+esc(n.id)+'" data-field="html">'+noteHTML(n)+'</div>'+
  (n.imageId?'<img class="photo" data-file="'+esc(n.imageId)+'" alt="Скріншот"><div class="help">'+esc(n.imageName||"Скріншот")+' <button class="ghost mini danger" data-action="removeimage" data-id="'+esc(n.id)+'">Прибрати</button></div>':"")+
  '<div class="meta"><select data-note="'+esc(n.id)+'" data-field="type">'+Object.keys(types).map(k=>'<option value="'+k+'" '+(n.type===k?"selected":"")+'>'+types[k]+'</option>').join("")+'</select><input class="time" data-note="'+esc(n.id)+'" data-field="time" placeholder="Таймкод 12:35" value="'+esc(n.time)+'"><input data-note="'+esc(n.id)+'" data-field="tags" placeholder="#USD #Karma" value="'+esc(n.tags)+'"><button data-action="picture" data-id="'+esc(n.id)+'">📷 Скріншот</button></div></section>';
 function render(){
@@ -182,10 +293,33 @@ $("nav").onclick=e=>{
  if(action==="renameweek"){const name=prompt(thematic?"Назва теми:":"Назва тижня:",w.name);if(name?.trim()){w.name=name.trim().slice(0,100);changed();render();}}
 };
 $("addWeek").onclick=()=>{course.weeks.push({id:id(),name:(thematic?"Нова тема ":"Тиждень ")+(course.weeks.length+1),lessons:[]});changed();render();};
+$("main").addEventListener("mousedown",e=>{
+ const b=e.target.closest("button[data-format]");
+ if(b?.closest(".richbar"))e.preventDefault(); // keep selected range on toolbar click
+});
+$("main").addEventListener("keydown",e=>{
+ const editor=e.target.closest(".rich-editor");
+ if(!editor)return;
+ const mod=e.ctrlKey||e.metaKey;
+ let cmd=null;
+ if(mod&&!e.altKey&&e.key.toLowerCase()==="b")cmd="bold";
+ if(mod&&!e.altKey&&e.key.toLowerCase()==="i")cmd="italic";
+ if(mod&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==="u")cmd="underline";
+ if((mod&&e.shiftKey&&e.key.toLowerCase()==="x")||(e.altKey&&e.shiftKey&&e.code==="Digit5"))cmd="strikeThrough";
+ if(cmd){e.preventDefault();rememberRichSelection();applyFormat(editor,cmd);}
+});
+$("main").addEventListener("change",e=>{
+ const paletteControl=e.target.closest("select[data-palette]");
+ if(!paletteControl)return;
+ const editor=paletteControl.closest(".note")?.querySelector(".rich-editor");
+ if(paletteControl.value)applyFormat(editor,paletteControl.dataset.palette,paletteControl.value);
+ paletteControl.value="";
+});
 $("main").onclick=e=>{
  const b=e.target.closest("[data-action]"),obj=chosen();if(!obj)return;
  if(e.target.id==="quick"){document.body.classList.toggle("quick");render();return;}
  if(!b)return;
+ if(b.dataset.format){applyFormat(b.closest(".note")?.querySelector(".rich-editor"),b.dataset.format);return;}
  const action=b.dataset.action,key=b.dataset.id,l=obj.l;
  if(action==="mode"){mode=key;render();}
  if(action==="add"){const n={id:id(),type:"note",text:"",time:"",tags:"",imageId:"",imageName:""};l.notes.push(n);changed();render();document.querySelector('[data-note="'+n.id+'"][data-field="text"]')?.focus();}
@@ -199,6 +333,8 @@ $("main").oninput=e=>{
  if(el.id==="lessonName"){obj.l.name=el.value;changed();return;}
  const sourceFields={materialSource:"source",materialURL:"url",materialVersion:"version"};
  if(sourceFields[el.id]){obj.l[sourceFields[el.id]]=el.value;changed();return;}
+ const editor=el.closest(".rich-editor");
+ if(editor){saveRichNote(editor);rememberRichSelection();return;}
  if(el.dataset.note){const n=obj.l.notes.find(n=>n.id===el.dataset.note);if(n){n[el.dataset.field]=el.value;changed();}}
 };
 $("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
@@ -206,7 +342,25 @@ $("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
  if(el.id==="lessonName"||el.id==="materialURL")render();
  if(el.dataset.note&&el.dataset.field==="type")render();
 };
-document.addEventListener("paste",e=>{const article=e.target.closest(".note");if(!article)return;const img=[...(e.clipboardData?.items||[])].find(x=>x.kind==="file"&&x.type.startsWith("image/"));if(!img)return;e.preventDefault();picNote=article.querySelector("[data-note]")?.dataset.note;if(picNote)upload(img.getAsFile());});
+document.addEventListener("paste",e=>{
+ const article=e.target.closest(".note");if(!article)return;
+ const img=[...(e.clipboardData?.items||[])].find(x=>x.kind==="file"&&x.type.startsWith("image/"));
+ if(img){
+  e.preventDefault();
+  picNote=article.querySelector(".rich-editor")?.dataset.note;
+  if(picNote)upload(img.getAsFile());
+  return;
+ }
+ const editor=e.target.closest(".rich-editor");
+ if(!editor)return;
+ e.preventDefault(); // external HTML is never inserted directly into notes
+ const plain=e.clipboardData?.getData("text/plain")||"";
+ if(plain){
+  editor.focus();
+  document.execCommand("insertText",false,plain);
+  saveRichNote(editor);
+ }
+});
 $("picInput").onchange=e=>{if(e.target.files[0])upload(e.target.files[0]);e.target.value="";};
 $("connect").onclick=async()=>{try{await auth();await load();}catch(e){toast(e.message);sync("Помилка входу","err");}};
 $("settingsBtn").onclick=()=>{$("client").value=config.client||"";$("apiKey").value=config.apiKey||"";$("project").value=config.project||"";settingsSave();$("settings").showModal();};
@@ -218,7 +372,7 @@ $("forget").onclick=()=>{if(confirm("Від'єднати папку? Файли 
 $("backup").onclick=()=>download(projectId+"-backup.json",JSON.stringify(course,null,2),"application/json");
 $("markdown").onclick=()=>{
  const lines=["# "+course.title,""];
- for(const w of course.weeks){lines.push("## "+w.name,"");for(const l of w.lessons){lines.push("### "+l.name,"","Статус: "+l.status,"",...(thematic?["Джерело: "+(l.source||""),"Посилання: "+(l.url||""),"Houdini: "+(l.version||""),""]:[]));for(const n of l.notes)lines.push("#### "+types[n.type]+(n.time?" · "+n.time:""),"",n.text||"",n.tags?"Теги: "+n.tags:"",n.imageId?"Скріншот (Drive ID): "+n.imageId:"","");}}
+ for(const w of course.weeks){lines.push("## "+w.name,"");for(const l of w.lessons){lines.push("### "+l.name,"","Статус: "+l.status,"",...(thematic?["Джерело: "+(l.source||""),"Посилання: "+(l.url||""),"Houdini: "+(l.version||""),""]:[]));for(const n of l.notes)lines.push("#### "+types[n.type]+(n.time?" · "+n.time:""),"",(n.html?sanitizeRich(n.html):n.text||""),n.tags?"Теги: "+n.tags:"",n.imageId?"Скріншот (Drive ID): "+n.imageId:"","");}}
  download(projectId+"-notes.md",lines.join("\n"),"text/markdown");
 };
 $("import").onclick=()=>$("importInput").click();
