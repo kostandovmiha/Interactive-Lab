@@ -33,8 +33,8 @@ const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,
 const id=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
 const projectId=new URLSearchParams(location.search).get("project")||"rebelway";
 const presets={
- rebelway:{id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",folderId:"1ncp7zLC1g-AUX_jNUi2Q1Ikoum4YeNUL"},
- copernicus:{id:"copernicus",name:"Houdini — Copernicus",type:"topic",folderId:"1cs_AY3Pf1cDzHUd8J31I3HFLc-giKKnY"}
+ rebelway:{id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",folderName:"Rebelway — Cinematic Lighting"},
+ copernicus:{id:"copernicus",name:"Houdini — Copernicus",type:"topic",folderName:"Houdini — Copernicus"}
 };
 const customProjects=JSON.parse(localStorage.getItem("ll-catalog-v2")||"[]");
 const project=presets[projectId]||customProjects.find(p=>p.id===projectId);
@@ -62,7 +62,7 @@ $("projectName").textContent=project.name.replace(/^Rebelway — /,"").replace(/
 $("projectSubtitle").textContent=thematic?"Теми → матеріали → нотатки":"Тижні → уроки → нотатки";
 $("sectionLabel").textContent=thematic?"Теми та матеріали":"Тижні та уроки";
 $("addWeek").textContent=thematic?"+ Тема":"+ Тиждень";
-$("folderSuggestion").textContent=project.folderId?"Вибери створену папку «"+project.name+"» у Google Picker.":"Для нового напряму створи папку на Google Drive й вибери її у Google Picker.";
+$("folderSuggestion").textContent=project.folderName?"Вибери створену папку «"+project.name+"» у Google Picker.":"Для нового напряму створи папку на Google Drive й вибери її у Google Picker.";
 document.title="Learning Lab · "+project.name;
 const lessons=()=>course.weeks.flatMap(w=>w.lessons.map(l=>({w,l})));
 const chosen=()=>lessons().find(x=>x.l.id===active);
@@ -126,7 +126,7 @@ async function pick(){
   new google.picker.PickerBuilder().addView(view).setOAuthToken(access).setDeveloperKey(config.apiKey).setAppId(config.project).setOrigin(location.origin).setCallback(async r=>{
    if(r.action===google.picker.Action.PICKED&&r.docs?.length){
     const folderId=r.docs[0].id;
-    if(project.folderId&&folderId!==project.folderId&&!confirm("Обрана папка відрізняється від «"+project.name+"». Продовжити?"))return;
+    if(project.folderName&&r.docs[0].name!==project.folderName&&!confirm("Обрана папка відрізняється від «"+project.name+"». Продовжити?"))return;
     if(dirty&&!confirm("Є незбережені записи. Експортуй резервний JSON перед зміною папки. Продовжити?"))return;
     config.folderId=folderId;config.folderName=r.docs[0].name;settingsSave();fileId="";await load();$("settings").close();
    }
