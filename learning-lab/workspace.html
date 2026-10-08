@@ -322,7 +322,7 @@ $("main").onclick=e=>{
  if(b.dataset.format){applyFormat(b.closest(".note")?.querySelector(".rich-editor"),b.dataset.format);return;}
  const action=b.dataset.action,key=b.dataset.id,l=obj.l;
  if(action==="mode"){mode=key;render();}
- if(action==="add"){const n={id:id(),type:"note",text:"",time:"",tags:"",imageId:"",imageName:""};l.notes.push(n);changed();render();document.querySelector('[data-note="'+n.id+'"][data-field="text"]')?.focus();}
+ if(action==="add"){const n={id:id(),type:"note",text:"",time:"",tags:"",imageId:"",imageName:""};l.notes.push(n);changed();render();document.querySelector('[data-note="'+n.id+'"][data-field="html"]')?.focus();}
  if(action==="remove"&&confirm("Видалити нотатку?")){l.notes=l.notes.filter(n=>n.id!==key);changed();render();}
  if(action==="removeimage"){const n=l.notes.find(n=>n.id===key);if(n){n.imageId="";n.imageName="";changed();render();}}
  if(action==="picture"){picNote=key;$("picInput").click();}
