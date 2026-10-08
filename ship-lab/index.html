@@ -25,13 +25,14 @@ button{background:#1c3047;border:1px solid #375069;color:#e8f5ff;border-radius:1
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head>
-<body><header class="head"><a class="brand" href="../">✦ INTERACTIVE<b>LAB</b> / SHIP</a><span class="small">Procedural spacecraft configurator · v1.1</span></header>
+<body><header class="head"><a class="brand" href="../">✦ INTERACTIVE<b>LAB</b> / SHIP</a><span class="small">Procedural spacecraft configurator · v1.2</span></header>
 <main class="layout">
-<section class="scene"><div id="viewer"></div><div class="topline"><div class="eyebrow">Procedural · Real-time WebGL · v1.1</div><h1>SHIP LAB<span style="color:#67e6d2">.</span></h1></div><div class="status" id="renderStatus">Завантаження 3D…</div><div class="error" id="error"></div><div class="note">Обертання: перетягни · Масштаб: колесо / два пальці</div><div class="toast" id="toast"></div></section>
+<section class="scene"><div id="viewer"></div><div class="topline"><div class="eyebrow">Procedural · Real-time WebGL · v1.2</div><h1>SHIP LAB<span style="color:#67e6d2">.</span></h1></div><div class="status" id="renderStatus">Завантаження 3D…</div><div class="error" id="error"></div><div class="note">Обертання: перетягни · Масштаб: колесо / два пальці</div><div class="toast" id="toast"></div></section>
 <aside class="side">
 <div class="section"><h2>Геометрія</h2>
 <div class="control"><div class="ctlrow"><label for="hull">Тип корпусу</label></div><select id="hull"><option value="interceptor">Interceptor · швидкий</option><option value="courier">Courier · екіпажний</option><option value="heavy">Heavy · масивний</option></select></div>
 <div class="control"><div class="ctlrow"><label for="wing">Форма крил</label></div><select id="wing"><option value="swept">Swept · стрілоподібні</option><option value="delta">Delta · трикутні</option><option value="forward">Forward · зворотні</option></select></div>
+<div class="control"><div class="ctlrow"><label for="canopy">Тип кабіни</label></div><select id="canopy"><option value="fighter">Fighter · низька гранована</option><option value="shuttle">Shuttle · широка панорамна</option><option value="armored">Armored · броньована</option></select></div>
 <div class="control"><div class="ctlrow"><label for="length">Довжина корпусу</label><span class="val" id="lengthVal"></span></div><input id="length" type="range" min="5" max="13" step=".5" value="8"></div>
 <div class="control"><div class="ctlrow"><label for="span">Розмах крил</label><span class="val" id="spanVal"></span></div><input id="span" type="range" min="3" max="12" step=".5" value="7"></div>
 <div class="control"><div class="ctlrow"><label for="sweep">Стрілоподібність</label><span class="val" id="sweepVal"></span></div><input id="sweep" type="range" min="0" max="100" step="5" value="55"></div>
@@ -46,7 +47,7 @@ button{background:#1c3047;border:1px solid #375069;color:#e8f5ff;border-radius:1
 <div class="section"><label class="switch" for="rotate"><span>Автоматичне обертання</span><input id="rotate" type="checkbox"></label><label class="switch" for="wireframe" style="margin-top:13px"><span>Показати каркас моделі</span><input id="wireframe" type="checkbox"></label><div class="actions" style="margin-top:15px"><button id="frontView">Спереду</button><button id="topView">Зверху</button><button id="rearView">Ззаду</button><button id="isoView">3/4</button></div></div>
 <div class="section"><h2>Експорт та обмін</h2>
 <div class="actions"><button id="export" class="primary">↓ Експортувати GLB</button><button id="png">Зберегти PNG</button><button id="share">Копіювати URL</button><button id="random">Випадковий корабель</button><button id="reset">Скинути</button></div>
-<p class="tiny">GLB можна імпортувати в 3ds Max / Houdini / Blender. Перевір нормалі обох крил у Max. Посилання запам'ятовує параметри. Three.js завантажується з CDN, тому потрібен інтернет.</p></div>
+<p class="tiny">GLB можна імпортувати в 3ds Max / Houdini / Blender. Кабіна тепер повністю гранована; перевір нормалі скла й крил у Max. Посилання запам'ятовує параметри. Three.js завантажується з CDN, тому потрібен інтернет.</p></div>
 </aside></main>
 <script type="module">
 import * as THREE from 'three';
@@ -55,9 +56,9 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 const view=document.getElementById('viewer'), status=document.getElementById('renderStatus');
 const toastEl=document.getElementById('toast');let toastTimeout;
 function toast(s){toastEl.textContent=s;toastEl.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>toastEl.classList.remove('show'),2400)}
-const defaults={length:9,span:7.5,sweep:55,engines:2,hull:'courier',wing:'swept',color:'e1ebf2'};
+const defaults={length:9,span:7.5,sweep:55,engines:2,hull:'courier',wing:'swept',canopy:'fighter',color:'e1ebf2'};
 let state={...defaults};
-try {const p=new URLSearchParams(location.hash.slice(1));for(const k of ['length','span','sweep','engines']){let v=Number(p.get(k));if(p.has(k)&&Number.isFinite(v))state[k]=v}if(['interceptor','courier','heavy'].includes(p.get('hull')))state.hull=p.get('hull');if(['swept','delta','forward'].includes(p.get('wing')))state.wing=p.get('wing');if(/^[0-9a-f]{6}$/i.test(p.get('color')||''))state.color=p.get('color')}catch(e){}
+try {const p=new URLSearchParams(location.hash.slice(1));for(const k of ['length','span','sweep','engines']){let v=Number(p.get(k));if(p.has(k)&&Number.isFinite(v))state[k]=v}if(['interceptor','courier','heavy'].includes(p.get('hull')))state.hull=p.get('hull');if(['swept','delta','forward'].includes(p.get('wing')))state.wing=p.get('wing');if(['fighter','shuttle','armored'].includes(p.get('canopy')))state.canopy=p.get('canopy');if(/^[0-9a-f]{6}$/i.test(p.get('color')||''))state.color=p.get('color')}catch(e){}
 state.length=THREE.MathUtils.clamp(state.length,5,13);state.span=THREE.MathUtils.clamp(state.span,3,12);state.sweep=THREE.MathUtils.clamp(state.sweep,0,100);if(![1,2,4].includes(state.engines))state.engines=2;
 const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,1,.1,200);camera.position.set(12,8,-18);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.5;view.appendChild(renderer.domElement);
@@ -110,6 +111,114 @@ function hullLoft(sections,m){
   const o=add(flat,m);o.name='Fuselage';
   return o;
 }
+
+// All canopy parts are polygon meshes. No SphereGeometry / smooth oval cockpit.
+// Stations progress from nose (-Z) to fuselage (+Z); each defines a low mounting
+// edge plus a narrow roof edge. Top and side glazing remain discrete flat facets.
+function canopyStations(L,W,H,kind){
+  const specs={
+    fighter:[
+      [-.410,.10,.035,.57,.64],[-.345,.30,.20,.66,.96],
+      [-.260,.48,.33,.80,1.16],[-.165,.49,.34,.89,1.17],
+      [-.100,.39,.29,.955,1.07]
+    ],
+    shuttle:[
+      [-.395,.26,.18,.61,.79],[-.325,.48,.36,.69,1.16],
+      [-.230,.60,.48,.84,1.33],[-.130,.56,.46,.94,1.30],
+      [-.075,.45,.37,.985,1.08]
+    ],
+    armored:[
+      [-.405,.14,.085,.59,.73],[-.325,.37,.23,.69,.99],
+      [-.220,.46,.32,.82,1.11],[-.130,.45,.30,.93,1.09],
+      [-.088,.38,.25,.98,1.02]
+    ]
+  };
+  return (specs[kind]||specs.fighter).map(([z,b,t,y0,y1])=>{
+    const Z=z*L, B=b*W, T=t*W, Y0=y0*H, Y1=y1*H;
+    return {
+      leftBase:new THREE.Vector3(-B,Y0,Z),
+      leftRoof:new THREE.Vector3(-T,Y1,Z),
+      rightRoof:new THREE.Vector3(T,Y1,Z),
+      rightBase:new THREE.Vector3(B,Y0,Z)
+    };
+  });
+}
+// Explicitly orient each triangle using an expected exterior normal. This avoids
+// accidental inverted faces in GLB, while keeping single-sided PBR materials.
+function canopyFacet(points,material,normalHint,name){
+  const positions=[];
+  const expected=new THREE.Vector3(...normalHint);
+  for(const tri of [[0,1,2],[0,2,3]]){
+    let a=points[tri[0]],b=points[tri[1]],c=points[tri[2]];
+    const normal=new THREE.Vector3().subVectors(b,a).cross(new THREE.Vector3().subVectors(c,a));
+    if(normal.dot(expected)<0)[b,c]=[c,b];
+    for(const v of [a,b,c])positions.push(v.x,v.y,v.z);
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.computeVertexNormals();
+  const mesh=add(geometry,material);
+  mesh.name=name;return mesh;
+}
+function canopyBeam(a,b,width,material,name){
+  const delta=new THREE.Vector3().subVectors(b,a);
+  const mesh=add(new THREE.BoxGeometry(width,delta.length(),width),material);
+  mesh.position.copy(a).add(b).multiplyScalar(.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());
+  mesh.name=name;
+  return mesh;
+}
+function buildCanopy(L,W,H,glass,edge,dark,body){
+  const kind=state.canopy;
+  const stations=canopyStations(L,W,H,kind);
+  const framed=mat('#314d62',.72,.25);framed.name='CanopyFrames';
+  const armour=mat('#496276',.68,.35);armour.name='ArmoredCanopyPlates';
+  const roofGlass=mat(kind==='armored'?'#153849':'#24546b',.52,.14);roofGlass.name='CanopyRoofGlass';
+  const sideGlass=glass;
+  const p=(s,k)=>s[k];
+  const spanCount=stations.length-1;
+  for(let i=0;i<spanCount;i++){
+    const a=stations[i],b=stations[i+1];
+    const left=[p(a,'leftBase'),p(a,'leftRoof'),p(b,'leftRoof'),p(b,'leftBase')];
+    const top=[p(a,'leftRoof'),p(a,'rightRoof'),p(b,'rightRoof'),p(b,'leftRoof')];
+    const right=[p(a,'rightRoof'),p(a,'rightBase'),p(b,'rightBase'),p(b,'rightRoof')];
+    const bottom=[p(a,'leftBase'),p(b,'leftBase'),p(b,'rightBase'),p(a,'rightBase')];
+    // Armored variant adds metal roof plating on the rear panels.
+    const roofMaterial=kind==='armored'&&i>=1?armour:roofGlass;
+    canopyFacet(left,sideGlass,[-1,.4,0],'Canopy_LeftGlass_'+i);
+    canopyFacet(top,roofMaterial,[0,1,0],'Canopy_Roof_'+i);
+    canopyFacet(right,sideGlass,[1,.4,0],'Canopy_RightGlass_'+i);
+    canopyFacet(bottom,dark,[0,-1,0],'Canopy_Underside_'+i);
+    // Flush lower rails are attached directly to the sloping fuselage.
+    canopyBeam(a.leftBase,b.leftBase,W*.105,framed,'Canopy_LeftSill_'+i);
+    canopyBeam(a.rightBase,b.rightBase,W*.105,framed,'Canopy_RightSill_'+i);
+    canopyBeam(a.leftRoof,b.leftRoof,W*.065,framed,'Canopy_LeftRoofRail_'+i);
+    canopyBeam(a.rightRoof,b.rightRoof,W*.065,framed,'Canopy_RightRoofRail_'+i);
+  }
+  const first=stations[0],last=stations.at(-1);
+  canopyFacet([first.leftBase,first.rightBase,first.rightRoof,first.leftRoof],
+    kind==='armored'?armour:sideGlass,[0,0,-1],'Canopy_FrontWindshield');
+  canopyFacet([last.leftBase,last.leftRoof,last.rightRoof,last.rightBase],
+    body,[0,0,1],'Canopy_RearBulkhead');
+  for(const [index,s] of stations.entries()){
+    // Segmented flat beams replace the previous long center strip that floated
+    // above the oval glass.
+    const thick=W*(index===0||index===stations.length-1?.11:.055);
+    canopyBeam(s.leftRoof,s.rightRoof,thick,framed,'Canopy_Crossbar_'+index);
+    if(index===0||index===stations.length-1){
+      canopyBeam(s.leftBase,s.leftRoof,W*.095,framed,'Canopy_LeftEndFrame_'+index);
+      canopyBeam(s.rightBase,s.rightRoof,W*.095,framed,'Canopy_RightEndFrame_'+index);
+    }
+  }
+  if(kind==='armored'){
+    // Additional angular armor cheek plates, still separate from the glass.
+    for(const side of [-1,1]){
+      canopyBeam(stations[1][side<0?'leftRoof':'rightRoof'],
+        stations[3][side<0?'leftRoof':'rightRoof'],W*.13,armour,
+        side<0?'Canopy_PortArmour':'Canopy_StarboardArmour');
+    }
+  }
+}
 function build(){
   while(ship.children.length){
     const o=ship.children[0];ship.remove(o);
@@ -149,10 +258,8 @@ function build(){
   const cabinLength=L*.35;
   add(new THREE.BoxGeometry(W*1.5,H*.22,cabinLength),panel,[0,H*.87,L*.035]);
   add(new THREE.BoxGeometry(W*1.58,H*.045,cabinLength*.94),edge,[0,H*1.02,L*.035]);
-  // Cockpit glazing remains opaque and dark, with a tapered front silhouette.
-  add(new THREE.SphereGeometry(1,24,14),glass,[0,H*.86,-L*.255],[0,0,0],[W*.62,H*.48,L*.205]).name='CockpitGlass';
-  add(new THREE.BoxGeometry(.075,H*.36,L*.33),edge,[0,H*1.205,-L*.24]);
-  add(new THREE.BoxGeometry(W*.85,.045,.11),dark,[0,H*1.23,-L*.13]);
+  // Integrated, lower angular cockpit; generated as independent flat PBR panels.
+  buildCanopy(L,W,H,glass,edge,dark,body);
   // Crew windows and colored hull stripe on each side.
   for(const side of [-1,1]){
     for(let i=0;i<3;i++){
@@ -212,11 +319,11 @@ function build(){
   add(new THREE.BoxGeometry(W*.95,H*.11,L*.24),dark,[0,-H*.94,L*.13]);
   ship.traverse(o=>{if(o.isMesh&&o.material)o.material.wireframe=wireframe});
 }
-function syncInputs(){for(const k of ['length','span','sweep','engines','hull','wing'])document.getElementById(k).value=state[k];document.getElementById('lengthVal').textContent=state.length.toFixed(1);document.getElementById('spanVal').textContent=state.span.toFixed(1);document.getElementById('sweepVal').textContent=state.sweep+'%';document.querySelectorAll('.swatch').forEach(e=>e.classList.toggle('active',e.dataset.color===state.color))}
+function syncInputs(){for(const k of ['length','span','sweep','engines','hull','wing','canopy'])document.getElementById(k).value=state[k];document.getElementById('lengthVal').textContent=state.length.toFixed(1);document.getElementById('spanVal').textContent=state.span.toFixed(1);document.getElementById('sweepVal').textContent=state.sweep+'%';document.querySelectorAll('.swatch').forEach(e=>e.classList.toggle('active',e.dataset.color===state.color))}
 function updateHash(){let q=new URLSearchParams();Object.entries(state).forEach(([k,v])=>q.set(k,v));history.replaceState(null,'','#'+q.toString())}
 function renderState(){syncInputs();build();updateHash()}
 ['length','span','sweep'].forEach(k=>document.getElementById(k).addEventListener('input',e=>{state[k]=Number(e.target.value);renderState()}));document.getElementById('engines').addEventListener('change',e=>{state.engines=+e.target.value;renderState()});
-for(const k of ['hull','wing'])document.getElementById(k).addEventListener('change',e=>{state[k]=e.target.value;renderState()});
+for(const k of ['hull','wing','canopy'])document.getElementById(k).addEventListener('change',e=>{state[k]=e.target.value;renderState()});
 document.querySelectorAll('.swatch').forEach(e=>e.addEventListener('click',()=>{state.color=e.dataset.color;renderState()}));
 document.getElementById('rotate').addEventListener('change',e=>controls.autoRotate=e.target.checked);
 document.getElementById('wireframe').addEventListener('change',e=>{wireframe=e.target.checked;ship.traverse(o=>{if(o.isMesh&&o.material)o.material.wireframe=wireframe});toast(wireframe?'Каркас увімкнено':'Каркас вимкнено')});
@@ -226,10 +333,10 @@ document.getElementById('topView').addEventListener('click',()=>look(0,19,0.01))
 document.getElementById('rearView').addEventListener('click',()=>look(0,2,19));
 document.getElementById('isoView').addEventListener('click',()=>look(12,8,-18));
 document.getElementById('reset').addEventListener('click',()=>{state={...defaults};controls.reset();camera.position.set(12,8,-18);controls.target.set(0,0,0);controls.autoRotate=false;document.getElementById('rotate').checked=false;wireframe=false;document.getElementById('wireframe').checked=false;renderState();toast('Параметри скинуто')});
-document.getElementById('random').addEventListener('click',()=>{state.length=5+Math.round(Math.random()*16)/2;state.span=3+Math.round(Math.random()*18)/2;state.sweep=Math.round(Math.random()*20)*5;state.engines=[1,2,4][Math.floor(Math.random()*3)];state.hull=['interceptor','courier','heavy'][Math.floor(Math.random()*3)];state.wing=['swept','delta','forward'][Math.floor(Math.random()*3)];state.color=['e1ebf2','586d85','caa68b','6c9dd2'][Math.floor(Math.random()*4)];renderState();toast('Нову конфігурацію створено')});
+document.getElementById('random').addEventListener('click',()=>{state.length=5+Math.round(Math.random()*16)/2;state.span=3+Math.round(Math.random()*18)/2;state.sweep=Math.round(Math.random()*20)*5;state.engines=[1,2,4][Math.floor(Math.random()*3)];state.hull=['interceptor','courier','heavy'][Math.floor(Math.random()*3)];state.wing=['swept','delta','forward'][Math.floor(Math.random()*3)];state.canopy=['fighter','shuttle','armored'][Math.floor(Math.random()*3)];state.color=['e1ebf2','586d85','caa68b','6c9dd2'][Math.floor(Math.random()*4)];renderState();toast('Нову конфігурацію створено')});
 function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000)}
 document.getElementById('png').addEventListener('click',()=>{renderer.render(scene,camera);renderer.domElement.toBlob(blob=>{if(blob)download(blob,'ship-lab.png')},'image/png');toast('PNG збережено')});
-document.getElementById('export').addEventListener('click',async()=>{try{const ex=new GLTFExporter();const result=await ex.parseAsync(ship,{binary:true,onlyVisible:true});download(new Blob([result],{type:'model/gltf-binary'}),'ship-lab-v1.1.glb');toast('GLB експортовано')}catch(e){console.error(e);toast('Помилка експорту GLB')}});
+document.getElementById('export').addEventListener('click',async()=>{try{const ex=new GLTFExporter();const result=await ex.parseAsync(ship,{binary:true,onlyVisible:true});download(new Blob([result],{type:'model/gltf-binary'}),'ship-lab-v1.2.glb');toast('GLB експортовано')}catch(e){console.error(e);toast('Помилка експорту GLB')}});
 document.getElementById('share').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('Посилання скопійовано')}catch(e){toast('Скопіюй адресу з браузера')}});
 function resize(){const r=view.getBoundingClientRect();if(!r.width||!r.height)return;camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false)}new ResizeObserver(resize).observe(view);window.addEventListener('resize',resize);
 renderState();resize();status.textContent='● WebGL активний';const clock=new THREE.Clock();function animate(){requestAnimationFrame(animate);controls.update(clock.getDelta());renderer.render(scene,camera)}animate();
