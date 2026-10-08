@@ -34,8 +34,8 @@ dialog{width:min(480px,calc(100vw - 30px));border:1px solid #45627d;border-radiu
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const presets=[
-{id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",description:"Професійний курс · USD, Solaris, Karma, світло та композитинг",folderId:"1ncp7zLC1g-AUX_jNUi2Q1Ikoum4YeNUL"},
-{id:"copernicus",name:"Houdini — Copernicus",type:"topic",description:"Самостійне вивчення · COP, PBR, MaterialX, Karma та експерименти",folderId:"1cs_AY3Pf1cDzHUd8J31I3HFLc-giKKnY"}
+{id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",description:"Професійний курс · USD, Solaris, Karma, світло та композитинг",folderName:"Rebelway — Cinematic Lighting"},
+{id:"copernicus",name:"Houdini — Copernicus",type:"topic",description:"Самостійне вивчення · COP, PBR, MaterialX, Karma та експерименти",folderName:"Houdini — Copernicus"}
 ];
 const getCustom=()=>{try{const c=JSON.parse(localStorage.getItem("ll-catalog-v2")||"[]");return Array.isArray(c)?c:[];}catch(e){return [];}};
 const projects=()=>presets.concat(getCustom());
