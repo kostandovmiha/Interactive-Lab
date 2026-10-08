@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090f1d"><title>Ship Lab · Interactive Lab</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:#090f1d;color:#eef6ff}button,input,select{font:inherit}
+a{color:#a4e9de;text-decoration:none}.head{height:64px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;border-bottom:1px solid #ffffff1b;background:#101a2a}.brand{font-size:14px;font-weight:800;letter-spacing:.08em}.brand b{color:#74e8d8}.head .small{font-size:12px;color:#899eb7}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;height:calc(100dvh - 64px);min-height:460px}.scene{position:relative;overflow:hidden;background:radial-gradient(ellipse at 48% 55%,#213249 0%,#101b2b 47%,#090f1d 85%)}
+#viewer{position:absolute;inset:0;touch-action:none}#viewer canvas{display:block;width:100%;height:100%}
+.scene .topline{position:absolute;top:19px;left:22px;pointer-events:none}.eyebrow{color:#69dbc9;text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:800}.topline h1{font-size:clamp(27px,4vw,49px);line-height:1;margin:9px 0 0;letter-spacing:-.065em}
+.note{position:absolute;bottom:19px;left:22px;font-size:12px;color:#9eb2c8;pointer-events:none}.status{position:absolute;top:20px;right:20px;padding:8px 11px;border:1px solid #ffffff25;border-radius:20px;font-size:11px;color:#a5f5e6;background:#0b142caa}
+.error{display:none;position:absolute;left:20px;right:20px;top:42%;background:#4d2534;border:1px solid #fa8d92;padding:20px;border-radius:12px;font-size:14px;line-height:1.5;z-index:2}
+.side{background:#111c2e;border-left:1px solid #ffffff16;overflow:auto;padding:22px 21px 32px}
+.section{padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid #ffffff19}h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8ba3bf;margin:0 0 18px}
+.control{margin:0 0 17px}.ctlrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;gap:9px}.ctlrow label{font-size:13px;font-weight:600}.val{color:#8fe9d8;font-size:12px;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:6px;accent-color:#72e6d6;cursor:pointer}
+select{background:#192c42;color:#ecf7ff;border:1px solid #375069;border-radius:9px;padding:10px;width:100%;outline:none}
+.colors{display:flex;gap:9px}.swatch{width:36px;height:36px;border-radius:12px;border:2px solid transparent;cursor:pointer}.swatch.active{outline:2px solid #dffdf9;outline-offset:2px}
+button{background:#1c3047;border:1px solid #375069;color:#e8f5ff;border-radius:10px;padding:11px 12px;font-size:13px;font-weight:700;cursor:pointer}button:hover{background:#2a4961}.primary{background:#53d6c1;color:#09202b;border-color:#53d6c1}.primary:hover{background:#8be9da}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.actions button:first-child{grid-column:span 2}
+.switch{display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:10px}.switch input{accent-color:#57d6c3;width:18px;height:18px}
+.tiny{font-size:11px;color:#8094b2;line-height:1.55;margin-top:15px}.toast{position:absolute;bottom:53px;left:22px;font-size:12px;background:#203b45;color:#a0f5e6;border:1px solid #4e998c;padding:9px 13px;border-radius:9px;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
+@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto}.scene{height:57dvh;min-height:340px}.side{border-left:0;border-top:1px solid #ffffff20;display:grid;grid-template-columns:1fr 1fr;gap:18px}.section{margin:0;padding:0 0 16px}.note{font-size:11px}}
+@media(max-width:520px){.side{display:block}.section{margin-bottom:18px}.scene{height:49dvh;min-height:300px}.head{padding:0 14px}.head .small{display:none}.status{top:15px;right:12px}.topline{top:17px!important;left:14px!important}.topline h1{font-size:29px}.note{left:14px;bottom:11px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head>
+<body><header class="head"><a class="brand" href="../">✦ INTERACTIVE<b>LAB</b> / SHIP</a><span class="small">Procedural spacecraft configurator · v0.1</span></header>
+<main class="layout">
+<section class="scene"><div id="viewer"></div><div class="topline"><div class="eyebrow">Procedural · Real-time WebGL</div><h1>SHIP LAB<span style="color:#67e6d2">.</span></h1></div><div class="status" id="renderStatus">Завантаження 3D…</div><div class="error" id="error"></div><div class="note">Обертання: перетягни · Масштаб: колесо / два пальці</div><div class="toast" id="toast"></div></section>
+<aside class="side">
+<div class="section"><h2>Геометрія</h2>
+<div class="control"><div class="ctlrow"><label for="length">Довжина корпусу</label><span class="val" id="lengthVal"></span></div><input id="length" type="range" min="5" max="13" step=".5" value="8"></div>
+<div class="control"><div class="ctlrow"><label for="span">Розмах крил</label><span class="val" id="spanVal"></span></div><input id="span" type="range" min="3" max="12" step=".5" value="7"></div>
+<div class="control"><div class="ctlrow"><label for="sweep">Стрілоподібність</label><span class="val" id="sweepVal"></span></div><input id="sweep" type="range" min="0" max="100" step="5" value="55"></div>
+<div class="control"><div class="ctlrow"><label for="engines">Двигуни</label></div><select id="engines"><option value="1">1 двигун</option><option value="2" selected>2 двигуни</option><option value="4">4 двигуни</option></select></div>
+</div>
+<div class="section"><h2>Матеріал корпусу</h2><div class="colors" id="colors">
+<button class="swatch active" aria-label="Білий титан" title="Білий титан" data-color="e1ebf2" style="background:#e1ebf2"></button>
+<button class="swatch" aria-label="Графіт" title="Графіт" data-color="586d85" style="background:#586d85"></button>
+<button class="swatch" aria-label="Пісочний" title="Пісочний" data-color="caa68b" style="background:#caa68b"></button>
+<button class="swatch" aria-label="Синій" title="Синій" data-color="6c9dd2" style="background:#6c9dd2"></button>
+</div></div>
+<div class="section"><label class="switch" for="rotate"><span>Автоматичне обертання</span><input id="rotate" type="checkbox"></label></div>
+<div class="section"><h2>Експорт та обмін</h2>
+<div class="actions"><button id="export" class="primary">↓ Експортувати GLB</button><button id="png">Зберегти PNG</button><button id="share">Копіювати URL</button><button id="random">Випадковий корабель</button><button id="reset">Скинути</button></div>
+<p class="tiny">GLB можна імпортувати в 3ds Max / Houdini / Blender. Посилання запам'ятовує вибрані параметри. Three.js завантажується з CDN, тому потрібен інтернет.</p></div>
+</aside></main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+const view=document.getElementById('viewer'), status=document.getElementById('renderStatus');
+const toastEl=document.getElementById('toast');let toastTimeout;
+function toast(s){toastEl.textContent=s;toastEl.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>toastEl.classList.remove('show'),2400)}
+const defaults={length:8,span:7,sweep:55,engines:2,color:'e1ebf2'};
+let state={...defaults};
+try {const p=new URLSearchParams(location.hash.slice(1));for(const k of ['length','span','sweep','engines']){let v=Number(p.get(k));if(p.has(k)&&Number.isFinite(v))state[k]=v}if(/^[0-9a-f]{6}$/i.test(p.get('color')||''))state.color=p.get('color')}catch(e){}
+state.length=THREE.MathUtils.clamp(state.length,5,13);state.span=THREE.MathUtils.clamp(state.span,3,12);state.sweep=THREE.MathUtils.clamp(state.sweep,0,100);if(![1,2,4].includes(state.engines))state.engines=2;
+const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(42,1,.1,200);camera.position.set(12,9,16);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.5;view.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.06;controls.minDistance=8;controls.maxDistance=40;controls.autoRotateSpeed=.7;
+scene.add(new THREE.HemisphereLight(0xbbe5ff,0x263148,2.2));let key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(-5,11,9);scene.add(key);let rim=new THREE.DirectionalLight(0x62dfff,2);rim.position.set(7,2,-10);scene.add(rim);
+let grid=new THREE.GridHelper(45,30,0x355064,0x203449);grid.position.y=-2.1;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
+let ship=new THREE.Group();scene.add(ship);let glowMeshes=[];
+function mat(hex,metal=.65,rough=.32){return new THREE.MeshStandardMaterial({color:hex,metalness:metal,roughness:rough})}
+function add(g,m,pos=[0,0,0],rot=[0,0,0],scale=[1,1,1],parent=ship){let o=new THREE.Mesh(g,m);o.position.set(...pos);o.rotation.set(...rot);o.scale.set(...scale);o.castShadow=false;parent.add(o);return o}
+function cylinder(r1,r2,len,m,x,y,z,axis='z'){return add(new THREE.CylinderGeometry(r1,r2,len,12),m,[x,y,z],axis==='z'?[Math.PI/2,0,0]:[0,0,0])}
+function prism(poly,thick,m){const n=poly.length,pts=[],indices=[];for(const y of [-thick/2,thick/2])for(let i=0;i<n;i++)pts.push(poly[i][0],y,poly[i][1]);for(let i=1;i<n-1;i++){indices.push(0,i+1,i);indices.push(n,n+i,n+i+1)}for(let i=0;i<n;i++){let j=(i+1)%n;indices.push(i,j,n+j,i,n+j,n+i)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));g.setIndex(indices);g.computeVertexNormals();return add(g,m)}
+function build(){
+while(ship.children.length){const o=ship.children[0];ship.remove(o);o.traverse(n=>{if(n.geometry)n.geometry.dispose()})}
+glowMeshes=[];const L=state.length,S=state.span,sw=state.sweep/100;const body=mat('#'+state.color),dark=mat('#27394a'),accent=mat('#e59d62',.38,.35),glass=mat('#183d54',.1,.11),edge=mat('#b2c6d0');
+const front=-L*.5,back=L*.5;
+cylinder(.77,.77,L*.68,body,0,0,.25,'z');cylinder(.14,.77,L*.32,body,0,0,front+L*.16,'z');
+cylinder(.84,.84,.14,dark,0,0,back-L*.2,'z');
+add(new THREE.SphereGeometry(1,24,12),glass,[0,.43,front+L*.36],[0,0,0],[.53,.37,L*.21]);
+add(new THREE.BoxGeometry(.07,.42,L*.27),edge,[0,.65,front+L*.41]);
+const outer=S*.5;for(const side of [-1,1]){
+const poly=[[side*.58,-L*.12],[side*1.05,-L*.3],[side*outer,-L*.2+sw*L*.37],[side*(outer-.12),L*.29],[side*.73,L*.24]];
+prism(poly,.18,body);
+let stripe=add(new THREE.BoxGeometry((outer-1.1)*.55,.035,.13),accent,[side*(1.07+(outer-1.1)*.28),.12,L*.15]);stripe.rotation.y=-side*.22;
+const fin=add(new THREE.BoxGeometry(.12,.72,L*.35),dark,[side*.56,.45,back-L*.26]);fin.rotation.z=-side*.25;
+}
+const count=state.engines;const coords=count===1?[0]:count===2?[-1.05,1.05]:[-2.2,-1.05,1.05,2.2];const engLen=L*.29;
+coords.forEach((x,i)=>{const y=x===0?-.58:(Math.abs(x)>1.5?-.24:-.46);const z=back-engLen*.42;cylinder(.27,.35,engLen,dark,x,y,z);cylinder(.32,.32,.09,edge,x,y,back-engLen*.02);cylinder(.24,.24,.06,new THREE.MeshStandardMaterial({color:0x56fff1,emissive:0x2afddd,emissiveIntensity:3.3,metalness:.12,roughness:.2}),x,y,back+.035);glowMeshes.push([x,y,back+.035]);});
+cylinder(.13,.16,L*.45,dark,0,-.82,.23);
+}
+function syncInputs(){for(const k of ['length','span','sweep','engines'])document.getElementById(k).value=state[k];document.getElementById('lengthVal').textContent=state.length.toFixed(1);document.getElementById('spanVal').textContent=state.span.toFixed(1);document.getElementById('sweepVal').textContent=state.sweep+'%';document.querySelectorAll('.swatch').forEach(e=>e.classList.toggle('active',e.dataset.color===state.color))}
+function updateHash(){let q=new URLSearchParams();Object.entries(state).forEach(([k,v])=>q.set(k,v));history.replaceState(null,'','#'+q.toString())}
+function renderState(){syncInputs();build();updateHash()}
+['length','span','sweep'].forEach(k=>document.getElementById(k).addEventListener('input',e=>{state[k]=Number(e.target.value);renderState()}));document.getElementById('engines').addEventListener('change',e=>{state.engines=+e.target.value;renderState()});
+document.querySelectorAll('.swatch').forEach(e=>e.addEventListener('click',()=>{state.color=e.dataset.color;renderState()}));
+document.getElementById('rotate').addEventListener('change',e=>controls.autoRotate=e.target.checked);
+document.getElementById('reset').addEventListener('click',()=>{state={...defaults};controls.reset();camera.position.set(12,9,16);controls.target.set(0,0,0);renderState();toast('Параметри скинуто')});
+document.getElementById('random').addEventListener('click',()=>{state.length=5+Math.round(Math.random()*16)/2;state.span=3+Math.round(Math.random()*18)/2;state.sweep=Math.round(Math.random()*20)*5;state.engines=[1,2,4][Math.floor(Math.random()*3)];state.color=['e1ebf2','586d85','caa68b','6c9dd2'][Math.floor(Math.random()*4)];renderState();toast('Нову конфігурацію створено')});
+function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000)}
+document.getElementById('png').addEventListener('click',()=>{renderer.render(scene,camera);renderer.domElement.toBlob(blob=>{if(blob)download(blob,'ship-lab.png')},'image/png');toast('PNG збережено')});
+document.getElementById('export').addEventListener('click',async()=>{try{const ex=new GLTFExporter();const result=await ex.parseAsync(ship,{binary:true,onlyVisible:true});download(new Blob([result],{type:'model/gltf-binary'}),'ship-lab.glb');toast('GLB експортовано')}catch(e){console.error(e);toast('Помилка експорту GLB')}});
+document.getElementById('share').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('Посилання скопійовано')}catch(e){toast('Скопіюй адресу з браузера')}});
+function resize(){const r=view.getBoundingClientRect();if(!r.width||!r.height)return;camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false)}new ResizeObserver(resize).observe(view);window.addEventListener('resize',resize);
+renderState();resize();status.textContent='● WebGL активний';const clock=new THREE.Clock();function animate(){requestAnimationFrame(animate);controls.update(clock.getDelta());renderer.render(scene,camera)}animate();
+</script>
+<script>window.addEventListener('error',e=>{const el=document.getElementById('error');el.style.display='block';el.textContent='Не вдалося завантажити 3D: '+e.message+'. Перевір інтернет і перезавантаж сторінку.'});window.addEventListener('unhandledrejection',e=>{console.error(e.reason)})</script>
+</body></html>
