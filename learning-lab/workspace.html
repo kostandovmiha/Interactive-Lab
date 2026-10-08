@@ -110,7 +110,10 @@ async function load(){
    if(dirty&&!confirm("Є незбережені локальні зміни. Замінити їх даними з Drive?"))return;
    course=incoming;dirty=false;
   }else if(!dirty){course=blank();changed();}
-  connected=true;active=lessons()[0]?.l.id||"";render();if(dirty)await flush();else sync("Збережено на Google Drive","ok");
+  connected=true;
+  const preferred=new URLSearchParams(location.search).get("lesson");
+  active=lessons().find(x=>x.l.id===preferred)?.l.id||lessons()[0]?.l.id||"";
+  render();if(dirty)await flush();else sync("Збережено на Google Drive","ok");
  }catch(e){connected=false;sync("Не вдалося відкрити Drive","err");toast(e.message);console.error(e);}
 }
 async function pick(){
@@ -168,7 +171,7 @@ function render(){
   const questions=l.notes.filter(n=>n.type==="question"),recipes=l.notes.filter(n=>n.type==="recipe"),experiments=l.notes.filter(n=>n.type==="experiment");
   body='<div class="review"><div class="stat"><strong>'+l.notes.length+'</strong><small>Записів</small></div><div class="stat"><strong>'+questions.length+'</strong><small>Питань</small></div><div class="stat"><strong>'+(recipes.length+experiments.length)+'</strong><small>Практичних блоків</small></div></div><h2>Питання для повторення</h2>'+(questions.length?questions.map(n=>'<div class="feed">'+esc(n.time?("⏱ "+n.time+" · "):"")+esc(n.text)+'</div>').join(""):'<p class="help">Наразі питань немає.</p>')+'<h2 style="margin-top:28px">Рецепти та експерименти</h2>'+(recipes.concat(experiments).map(n=>'<div class="feed"><b>'+esc(types[n.type])+'</b> · '+esc(n.text)+'</div>').join("")||'<p class="help">Практичних блоків ще немає.</p>');
  }
- main.innerHTML='<div class="top"><div><div class="eyebrow">'+esc(obj.w.name)+'</div><input class="lessonname" id="lessonName" value="'+esc(l.name)+'" aria-label="Назва уроку"></div><div class="tabs"><button data-action="mode" data-id="notes" class="'+(mode==="notes"?"on":"")+'">Конспект</button><button data-action="mode" data-id="review" class="'+(mode==="review"?"on":"")+'">Огляд</button></div></div><div class="toolbar"><span>Статус:</span><select id="lessonStatus"><option value="todo" '+(l.status==="todo"?"selected":"")+'>Не почато</option><option value="practice" '+(l.status==="practice"?"selected":"")+'>У процесі</option><option value="done" '+(l.status==="done"?"selected":"")+'>Завершено</option></select><button id="quick">'+(document.body.classList.contains("quick")?"Повний режим":"⛶ Quick Notes")+'</button><button data-action="deleteLesson" class="ghost danger">Видалити урок</button></div>'+sourceHTML+body;
+ main.innerHTML='<div class="top"><div><div class="eyebrow">'+esc(obj.w.name)+'</div><input class="lessonname" id="lessonName" value="'+esc(l.name)+'" aria-label="Назва уроку"></div><div class="tabs"><button data-action="mode" data-id="notes" class="'+(mode==="notes"?"on":"")+'">Конспект</button><button data-action="mode" data-id="review" class="'+(mode==="review"?"on":"")+'">Огляд</button></div></div><div class="toolbar"><span>Статус:</span><select id="lessonStatus"><option value="todo" '+(l.status==="todo"?"selected":"")+'>Не почато</option><option value="practice" '+(l.status==="practice"?"selected":"")+'>У процесі</option><option value="done" '+(l.status==="done"?"selected":"")+'>Завершено</option></select><button id="quick">'+(document.body.classList.contains("quick")?"Повний режим":"⛶ Quick Notes")+'</button><button data-action="deleteLesson" class="ghost danger">Видалити '+(thematic?"матеріал":"урок")+'</button></div>'+sourceHTML+body;
  showImages();
 }
 $("nav").onclick=e=>{
@@ -189,7 +192,7 @@ $("main").onclick=e=>{
  if(action==="remove"&&confirm("Видалити нотатку?")){l.notes=l.notes.filter(n=>n.id!==key);changed();render();}
  if(action==="removeimage"){const n=l.notes.find(n=>n.id===key);if(n){n.imageId="";n.imageName="";changed();render();}}
  if(action==="picture"){picNote=key;$("picInput").click();}
- if(action==="deleteLesson"&&confirm("Видалити урок із нотатками?")){obj.w.lessons=obj.w.lessons.filter(x=>x.id!==l.id);active="";changed();render();}
+ if(action==="deleteLesson"&&confirm(thematic?"Видалити матеріал із нотатками?":"Видалити урок із нотатками?")){obj.w.lessons=obj.w.lessons.filter(x=>x.id!==l.id);active="";changed();render();}
 };
 $("main").oninput=e=>{
  const el=e.target,obj=chosen();if(!obj)return;
