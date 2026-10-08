@@ -1,5 +1,40 @@
 # Ship Lab
 
+## Version 1.2 — Canopy Pass (2026-10-08)
+
+Based on user visual feedback: the previous smooth oval cockpit looked like a
+detached "egg" on an angular sci-fi fuselage.
+
+- Removed the original `SphereGeometry` canopy, raised bar and floating roof trim.
+- Built a new **faceted canopy** from separate triangular flat-shaded front,
+  roof and side window panels, lower flush sills and angular frame beams.
+- Added three cockpit types:
+  - **Fighter** — low-profile tapered wedge (default).
+  - **Shuttle** — wider, taller panoramic cockpit.
+  - **Armored** — flatter silhouette with armor plates over the roof.
+- New `canopy` setting is saved in URL hash, randomized with the ship and exported
+  as part of the GLB. Mesh names begin with `Canopy_` for straightforward selection
+  and normal inspection inside 3ds Max.
+- Each canopy triangle winding is oriented to an explicit expected exterior
+  normal rather than relying on browser double-sided rendering.
+
+### V1.2 verification
+
+- GitHub source readback: confirmed.
+- JavaScript inline syntax checks: **2/2 PASS**.
+- 81 geometry parameter combinations (3 canopies × 3 lengths × 3 widths × 3 heights):
+  consistent station direction, mirror symmetry, roof above body and non-degenerate
+  side/roof triangles: **PASS**.
+- Browser visual acceptance and 3ds Max 2022 GLB import: **not yet re-tested** for V1.2.
+
+**User test:** hard-refresh (Ctrl+F5), compare the three canopy styles, inspect
+from top and side, export GLB and examine outward normals of
+`Canopy_LeftGlass_*`, `Canopy_RightGlass_*`, `Canopy_Roof_*`.
+Confirm that cockpit is integrated into the fuselage and no floating oval remains.
+
+---
+
+
 Browser-based procedural spacecraft prototype built with Three.js (ES modules via jsDelivr).
 
 **Live page:** https://kostandovmiha.github.io/Interactive-Lab/ship-lab/
