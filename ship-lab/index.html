@@ -64,7 +64,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawin
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.06;controls.minDistance=8;controls.maxDistance=40;controls.autoRotateSpeed=.7;
 scene.add(new THREE.HemisphereLight(0xbbe5ff,0x263148,2.2));let key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(-5,11,9);scene.add(key);let rim=new THREE.DirectionalLight(0x62dfff,2);rim.position.set(7,2,-10);scene.add(rim);
 let grid=new THREE.GridHelper(45,30,0x355064,0x203449);grid.position.y=-2.1;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
-let ship=new THREE.Group();scene.add(ship);let wireframe=false;
+let ship=new THREE.Group();ship.name='ShipLab_V1_1';scene.add(ship);let wireframe=false;
 function mat(hex,metal=.65,rough=.32){return new THREE.MeshStandardMaterial({color:hex,metalness:metal,roughness:rough})}
 function add(g,m,pos=[0,0,0],rot=[0,0,0],scale=[1,1,1],parent=ship){let o=new THREE.Mesh(g,m);o.position.set(...pos);o.rotation.set(...rot);o.scale.set(...scale);o.castShadow=false;parent.add(o);return o}
 function cylinder(r1,r2,len,m,x,y,z,axis='z'){return add(new THREE.CylinderGeometry(r1,r2,len,12),m,[x,y,z],axis==='z'?[Math.PI/2,0,0]:[0,0,0])}
@@ -119,13 +119,13 @@ function build(){
     }});
   }
   const L=state.length,S=state.span,sw=state.sweep/100;
-  const body=mat('#'+state.color,.53,.33);
-  const dark=mat('#283e52',.58,.37);
-  const accent=mat('#e7a261',.4,.36);
-  const glass=mat('#204f64',.72,.13);
-  const edge=mat('#bed2dd',.7,.25);
-  const panel=mat('#678395',.54,.4);
-  const mint=new THREE.MeshStandardMaterial({color:0x5fffe5,emissive:0x33fff0,emissiveIntensity:2.9,roughness:.23,metalness:.1});
+  const body=mat('#'+state.color,.53,.33);body.name='HullPaint';
+  const dark=mat('#283e52',.58,.37);dark.name='DarkMechanical';
+  const accent=mat('#e7a261',.4,.36);accent.name='OrangeAccent';
+  const glass=mat('#204f64',.72,.13);glass.name='OpaqueCanopyGlass';
+  const edge=mat('#bed2dd',.7,.25);edge.name='TrimMetal';
+  const panel=mat('#678395',.54,.4);panel.name='CrewModulePanels';
+  const mint=new THREE.MeshStandardMaterial({color:0x5fffe5,emissive:0x33fff0,emissiveIntensity:2.9,roughness:.23,metalness:.1});mint.name='EngineEmission';
   const mode=state.hull;
   const W=mode==='interceptor'?.71:mode==='heavy'?1.09:.91;
   const H=mode==='interceptor'?.68:mode==='heavy'?.99:.81;
@@ -186,7 +186,8 @@ function build(){
         [side*(outer*.62),L*.24],[side*(W*.8),L*.26]
       ];
     }
-    wingPrism(poly,.17,body);
+    const wingMesh=wingPrism(poly,.17,body);
+    wingMesh.name=side<0?'Wing_Port':'Wing_Starboard';
     const mid=(outer+W*.92)*.5;
     const length=Math.max(.35,(outer-W)*.31);
     const stripe=add(new THREE.BoxGeometry(length,.035,.13),accent,[side*mid,.10,L*.075]);
