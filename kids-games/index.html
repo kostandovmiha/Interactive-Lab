@@ -59,6 +59,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .voice-button{border:2px solid #fff;border-radius:16px;background:#ffffffdc;color:#68548b;font-size:14px;font-weight:800;min-height:51px;padding:10px 15px;box-shadow:0 4px 12px #68509a16}
 .voice-button[aria-pressed="true"]{background:#e5d8ff;border-color:#a68ce3;color:#553b91}
 .voice-button:disabled{opacity:.5;cursor:not-allowed}
+#recover-audio{background:#e8ffdc;border-color:#a0cd81;color:#346240}
 .auto-control{display:flex;align-items:center;justify-content:center;gap:8px;color:#6f6386;font-size:14px;font-weight:750;margin-top:12px;cursor:pointer}
 .auto-control input{width:21px;height:21px;accent-color:#7953c7;cursor:pointer}
 .voice-note{margin:8px auto 0;max-width:570px;text-align:center;font-size:12px;line-height:1.5;color:#8290a0}
@@ -90,6 +91,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div></div>
   <div class="settings" role="group" aria-label="Режим гри"><button type="button" class="mode selected" data-mode="free" aria-pressed="true">🎈 Просто грати</button><button type="button" class="mode" data-mode="colors" aria-pressed="false">🎨 Вивчаємо кольори</button></div>
   <div class="voice-controls" role="group" aria-label="Керування голосовими підказками">
+    <button type="button" class="voice-button" id="recover-audio">🔄 Відновити звук</button>
     <button type="button" class="voice-button" id="voice-toggle" aria-pressed="true">🗣️ Голос увімкнено</button>
     <button type="button" class="voice-button" id="repeat-instruction">🔁 Повторити підказку</button>
   </div>
@@ -114,11 +116,10 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   let W=400,H=460,balloons=[],particles=[],score=0,mode="free",target=null,soundOn=true,audio=null,active=false;
   const CLIPS=["hello","free","red","yellow","blue","green","retry-red","retry-yellow","retry-blue","retry-green","great","wonderful","super","hooray","yes","again","excellent","good-job"];
   const TARGET_CLIP={"червону":"red","жовту":"yellow","синю":"blue","зелену":"green"};
-  const clipCache=new Map(CLIPS.map(key=>{
-    const audio=new Audio("./audio/"+key+".ogg");
-    audio.preload="none";
-    return [key,audio];
-  }));
+  // One shared voice player prevents 18 decoders from competing on mobile.
+  const voicePlayer=new Audio();
+  voicePlayer.preload="auto";
+  let voicePlaybackId=0;
   let voiceOn=true,autoVoice=true,currentAudio=null,speechTimer=0,wrongVoiceAt=0,praiseVoiceAt=0;
   let last=0,frameHandle=0,feedbackTimer=0,time=0,voiceAssetsReady=false;
   try{voiceOn=localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
@@ -126,31 +127,39 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   function setVoiceState(message,type="neutral"){voiceState.textContent=message;voiceState.dataset.state=type;}
   function stopVoice(){
     clearTimeout(speechTimer);speechTimer=0;
-    if(currentAudio){try{currentAudio.pause();currentAudio.currentTime=0;}catch(e){}currentAudio=null;}
+    voicePlaybackId++;
+    try{voicePlayer.pause();voicePlayer.currentTime=0;}catch(e){}
+    currentAudio=null;
   }
   function instructionKey(){return mode==="colors"&&target?TARGET_CLIP[target.name]:"free";}
   function playClip(key){
-    if(!active||!voiceOn||!soundOn||document.hidden)return false;
-    const clip=clipCache.get(key);
-    if(!clip)return false;
+    if(!active||!voiceOn||!soundOn||document.hidden||!CLIPS.includes(key))return false;
     stopVoice();
-    currentAudio=clip;
-    clip.currentTime=0;
-    clip.onended=()=>{if(currentAudio===clip){currentAudio=null;setVoiceState("✅ Українське озвучення працює.","ok");}};
-    clip.onerror=()=>{if(currentAudio===clip){currentAudio=null;setVoiceState("⚠️ Не вдалося завантажити аудіофайл "+key+".ogg.","error");}};
+    const id=voicePlaybackId;
+    currentAudio=voicePlayer;
+    voicePlayer.onended=()=>{
+      if(id!==voicePlaybackId)return;
+      currentAudio=null;setVoiceState("✅ Українське озвучення працює.","ok");
+    };
+    voicePlayer.onerror=()=>{
+      if(id!==voicePlaybackId)return;
+      currentAudio=null;
+      setVoiceState("⚠️ Проблема з "+key+".ogg (код "+(voicePlayer.error?.code||"?")+"). Спробуй «Відновити звук».","error");
+    };
     try{
-      const promise=clip.play();
-      if(promise&&typeof promise.then==="function"){
-        promise.then(()=>{voiceAssetsReady=true;if(currentAudio===clip)setVoiceState("🗣️ Відтворюємо записаний український голос.","ok");})
-        .catch(err=>{
-          if(currentAudio!==clip)return;
-          currentAudio=null;
-          setVoiceState("⚠️ Не вдалося відтворити голос: "+(err&&err.name||"помилка")+". Натисни «Повторити підказку».","error");
-        });
-      }
+      voicePlayer.src="./audio/"+key+".ogg";
+      const p=voicePlayer.play();
+      if(p&&typeof p.then==="function")p.then(()=>{
+        if(id===voicePlaybackId){voiceAssetsReady=true;setVoiceState("🗣️ Відтворюємо український голос.","ok");}
+      }).catch(err=>{
+        if(id!==voicePlaybackId||err?.name==="AbortError")return;
+        currentAudio=null;
+        setVoiceState("⚠️ Голос не відтворився ("+(err?.name||"помилка")+"). Натисни «Відновити звук».","error");
+      });
       return true;
     }catch(e){
-      currentAudio=null;setVoiceState("⚠️ Помилка відтворення: "+(e&&e.message||"невідомо"),"error");return false;
+      currentAudio=null;
+      setVoiceState("⚠️ Помилка голосу: "+(e?.message||"невідомо"),"error");return false;
     }
   }
   function queueInstruction(delay=450){
@@ -179,8 +188,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
       const data=await r.json();
       if(!data.files||Object.keys(data.files).length!==CLIPS.length)throw Error("Неповний набір аудіо");
       voiceAssetsReady=true;setVoiceState("✅ Українські голосові файли завантажені.","ok");
-      // Load the short clips after the first interaction, so they can also be cached for offline play.
-      for(const c of clipCache.values()){c.preload="auto";c.load();}
+      // Offline clips are cached by the service worker; each voice loads only when played.
     }catch(e){
       setVoiceState("⌛ Аудіофайли ще недоступні: "+(e&&e.message||"мережа")+".","error");
       voiceNote.textContent="Звуки кульок працюють окремо. Аудіопак Tetiana ще не опубліковано або він не завантажився.";
@@ -257,16 +265,37 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     if(active)draw(dt);
     frameHandle=requestAnimationFrame(frame);
   }
-  function popSound(){
-    if(!soundOn)return;
+  function restoreAudioContext(){
     try{
-      const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
-      audio=audio||new C();if(audio.state==="suspended")audio.resume();
+      const C=window.AudioContext||window.webkitAudioContext;
+      if(!C)return false;
+      if(!audio||audio.state==="closed")audio=new C();
+      if(audio.state!=="running"){
+        const p=audio.resume();
+        if(p?.catch)p.catch(err=>setVoiceState("⚠️ Звуковий рушій: "+(err?.name||"помилка"),"error"));
+      }
+      return true;
+    }catch(e){
+      setVoiceState("⚠️ Не вдалося ввімкнути звук: "+(e?.message||"помилка"),"error");return false;
+    }
+  }
+  function popSound(){
+    if(!soundOn||!restoreAudioContext())return;
+    try{
       const o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;
       o.type="sine";o.frequency.setValueAtTime(420,now);o.frequency.exponentialRampToValueAtTime(160,now+.12);
       g.gain.setValueAtTime(.075,now);g.gain.exponentialRampToValueAtTime(.001,now+.14);
       o.connect(g);g.connect(audio.destination);o.start(now);o.stop(now+.15);
-    }catch(e){}
+      o.onended=()=>{try{o.disconnect();g.disconnect();}catch(e){}};
+    }catch(e){setVoiceState("⚠️ Помилка звуку кульок: "+(e?.message||"невідомо"),"error");}
+  }
+  function recoverSound(){
+    soundOn=true;
+    syncAudioControls();
+    restoreAudioContext();
+    popSound();
+    if(voiceOn)playClip(instructionKey());
+    else setVoiceState("✅ Ефекти ввімкнено. Голос окремо вимкнений.","ok");
   }
   function burst(x,y,color){
     for(let i=0;i<16;i++){
@@ -311,6 +340,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   }
   document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";renderRoute();});
   document.getElementById("go-home").addEventListener("click",()=>{location.hash="";renderRoute();});
+  document.getElementById("recover-audio").addEventListener("click",recoverSound);
   document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
     stopVoice();mode=btn.dataset.mode;
     document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
@@ -318,7 +348,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   }));
   soundButton.addEventListener("click",()=>{
     soundOn=!soundOn;
-    if(!soundOn)stopVoice();else queueInstruction(0);
+    if(!soundOn)stopVoice();else {restoreAudioContext();queueInstruction(0);}
     syncAudioControls();
   });
   voiceButton.addEventListener("click",()=>{
