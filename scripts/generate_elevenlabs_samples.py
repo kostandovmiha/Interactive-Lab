@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLES = ROOT / "voice-lab" / "samples"
-PHRASE = "Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!"
+PHRASE = "Привіт! Давай гратися з кульками! Знайди червону кульку. Ура! Молодець!"
 MODEL = "eleven_multilingual_v2"
 URL = "https://api.elevenlabs.io/v1"
 
