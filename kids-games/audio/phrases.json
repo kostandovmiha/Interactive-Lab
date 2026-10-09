@@ -28,6 +28,26 @@
       "text": "Знайди зелену кульку.",
       "src": "./audio/green.ogg"
     },
+    "orange": {
+      "text": "Знайди помаранчеву кульку.",
+      "src": "./audio/orange.ogg"
+    },
+    "purple": {
+      "text": "Знайди фіолетову кульку.",
+      "src": "./audio/purple.ogg"
+    },
+    "pink": {
+      "text": "Знайди рожеву кульку.",
+      "src": "./audio/pink.ogg"
+    },
+    "turquoise": {
+      "text": "Знайди бірюзову кульку.",
+      "src": "./audio/turquoise.ogg"
+    },
+    "brown": {
+      "text": "Знайди коричневу кульку.",
+      "src": "./audio/brown.ogg"
+    },
     "retry-red": {
       "text": "Шукай червону кульку.",
       "src": "./audio/retry-red.ogg"
@@ -43,6 +63,26 @@
     "retry-green": {
       "text": "Шукай зелену кульку.",
       "src": "./audio/retry-green.ogg"
+    },
+    "retry-orange": {
+      "text": "Шукай помаранчеву кульку.",
+      "src": "./audio/retry-orange.ogg"
+    },
+    "retry-purple": {
+      "text": "Шукай фіолетову кульку.",
+      "src": "./audio/retry-purple.ogg"
+    },
+    "retry-pink": {
+      "text": "Шукай рожеву кульку.",
+      "src": "./audio/retry-pink.ogg"
+    },
+    "retry-turquoise": {
+      "text": "Шукай бірюзову кульку.",
+      "src": "./audio/retry-turquoise.ogg"
+    },
+    "retry-brown": {
+      "text": "Шукай коричневу кульку.",
+      "src": "./audio/retry-brown.ogg"
     },
     "great": {
       "text": "Молодець!",
