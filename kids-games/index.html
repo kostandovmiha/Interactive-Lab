@@ -245,15 +245,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     balloons.forEach(b=>{b.x=Math.max(b.r,Math.min(W-b.r,b.x*(W/oldW)));b.y=Math.max(b.r,Math.min(H-b.r,b.y*(H/oldH)));});
   }
   function desiredCount(){return Math.min(10,Math.max(5,Math.round(W*H/44000)));}
-  function newBalloon(extraBottom=false){
+  function newBalloon(extraBottom=false,keepColor=null){
     const r=Math.max(30,Math.min(47,W/8.2))*rand(.89,1.13);
     let x=rand(r+5,Math.max(r+6,W-r-5)),y=extraBottom?H+r:rand(r+15,Math.max(r+16,H-r-10));
     for(let i=0;i<35&&!extraBottom;i++){
       x=rand(r+5,W-r-5);y=rand(r+15,H-r-10);
       if(balloons.every(b=>Math.hypot(b.x-x,b.y-y)>b.r+r+10))break;
     }
-    const b={x:x,y:y,r:r,color:palette[Math.floor(rand(0,palette.length))],phase:rand(0,6.28),speed:rand(7,15),id:Math.random()};
-    return b;
+    return {x,y,r,color:keepColor||nextColor(),phase:rand(0,6.28),speed:rand(13,26),id:Math.random()};
   }
   function fill(){
     balloons=[];for(let i=0;i<desiredCount();i++)balloons.push(newBalloon());
@@ -300,8 +299,19 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   }
   function draw(dt){
     ctx.clearRect(0,0,W,H);
-    balloons.forEach(b=>{b.y-=b.speed*dt;if(b.y < -b.r-60){const repl=newBalloon(true);repl.color=b.color;Object.assign(b,repl);}drawBalloon(b);});
-    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=80*dt;p.rot+=p.spin*dt;if(p.life<=0)particles.splice(i,1);else drawParticle(p);}
+    if(gameState==="celebrating")updateCelebration(dt);
+    const multiplier=mode==="free"?speedMultiplier():1;
+    balloons.forEach(b=>{
+      if(gameState==="playing"){
+        b.y-=b.speed*multiplier*dt;
+        if(b.y < -b.r-60)Object.assign(b,newBalloon(true,b.color));
+      }
+      drawBalloon(b);
+    });
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=80*dt;p.rot+=p.spin*dt;
+      if(p.life<=0)particles.splice(i,1);else drawParticle(p);
+    }
   }
   function frame(t){
     const dt=Math.min((t-last)/1000||0,.04);last=t;time=t;
