@@ -3,7 +3,7 @@
 **[Open Voice Lab](https://kostandovmiha.github.io/Interactive-Lab/voice-lab/)**
 
 Voice Lab compares 1–5 Ukrainian voice samples using the same phrase:
-> Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!
+> Привіт! Давай гратися з кульками! Знайди червону кульку. Ура! Молодець!
 
 ## Free route, without API setup
 
