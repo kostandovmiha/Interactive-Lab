@@ -43,7 +43,8 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .game-heading{text-align:center;margin:0 0 12px}
 .game-heading h2{margin:0;font-weight:900;color:#6550a5;font-size:clamp(25px,5vw,39px)}
 .game-heading p{min-height:28px;font-size:clamp(15px,3vw,22px);font-weight:800;color:#6e7790;margin:6px 0 0}
-.target-dot{display:inline-block;width:23px;height:23px;border:3px solid #fff;box-shadow:0 1px 5px #0002;border-radius:50%;vertical-align:-4px;margin:0 5px}
+.game-heading p#instruction{min-height:72px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px;padding:5px 10px;line-height:1.35}
+.target-dot{display:inline-block;width:clamp(56px,9vw,68px);height:clamp(56px,9vw,68px);border:5px solid #fff;box-shadow:0 3px 12px #0003;border-radius:50%;flex-shrink:0}
 .field{height:clamp(330px,62dvh,600px);position:relative;overflow:hidden;border:5px solid #fff;border-radius:30px;background:linear-gradient(#8edcfa 0%,#d0f2fc 70%,#eaf9d9 100%);box-shadow:0 13px 30px #6f6f971c}
 .field:before,.field:after{content:"";position:absolute;pointer-events:none;background:#ffffffa8;border-radius:99px;width:130px;height:40px;box-shadow:30px -12px 0 5px #ffffffa8,70px 4px 0 #ffffffa8;opacity:.6}
 .field:before{top:18%;left:7%}.field:after{top:37%;right:19%;transform:scale(.7)}
@@ -51,11 +52,18 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .settings{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:16px 0 0}
 .mode{border:3px solid #fff;border-radius:18px;background:#fff9;font-size:15px;font-weight:850;color:#755899;min-height:56px;padding:10px 19px}
 .mode.selected{background:#8460cf;color:#fff;box-shadow:0 5px 0 #6742af}
+.voice-controls{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.voice-button{border:2px solid #fff;border-radius:16px;background:#ffffffdc;color:#68548b;font-size:14px;font-weight:800;min-height:51px;padding:10px 15px;box-shadow:0 4px 12px #68509a16}
+.voice-button[aria-pressed="true"]{background:#e5d8ff;border-color:#a68ce3;color:#553b91}
+.voice-button:disabled{opacity:.5;cursor:not-allowed}
+.auto-control{display:flex;align-items:center;justify-content:center;gap:8px;color:#6f6386;font-size:14px;font-weight:750;margin-top:12px;cursor:pointer}
+.auto-control input{width:21px;height:21px;accent-color:#7953c7;cursor:pointer}
+.voice-note{margin:8px auto 0;max-width:570px;text-align:center;font-size:12px;line-height:1.5;color:#8290a0}
 .tip{font-size:13px;color:#7d8b9e;text-align:center;line-height:1.5;margin:16px auto 0}
 .feedback{position:absolute;left:50%;top:35%;transform:translate(-50%,-50%);padding:9px 19px;border-radius:99px;background:#fff;font-size:23px;font-weight:900;white-space:nowrap;color:#7d50b4;pointer-events:none;opacity:0;transition:opacity .18s}
 .feedback.show{opacity:1}
 @media(max-width:740px){.catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.game-card{min-height:185px;padding:17px}.game-card .illustration{font-size:44px}}
-@media(max-width:480px){.catalog{grid-template-columns:1fr 1fr;gap:11px}.game-card{padding:14px;border-radius:20px;min-height:185px}.game-card strong{font-size:17px}.game-card small{font-size:11px}.game-card .illustration{font-size:39px}.parent-link{font-size:11px;padding:9px 10px}.field{height:clamp(340px,61dvh,520px)}.settings{gap:8px}.mode{padding:10px 13px;font-size:13px;flex:1}.back{font-size:14px}.counter{font-size:16px;padding:9px 12px}}
+@media(max-width:480px){.catalog{grid-template-columns:1fr 1fr;gap:11px}.game-card{padding:14px;border-radius:20px;min-height:185px}.game-card strong{font-size:17px}.game-card small{font-size:11px}.game-card .illustration{font-size:39px}.parent-link{font-size:11px;padding:9px 10px}.field{height:clamp(340px,61dvh,520px)}.settings{gap:8px}.mode{padding:10px 13px;font-size:13px;flex:1}.voice-button{font-size:13px;flex:1;min-width:140px}.back{font-size:14px}.counter{font-size:16px;padding:9px 12px}}
 @media(prefers-reduced-motion:reduce){.game-card.featured{transition:none}}
 </style>
 </head>
@@ -78,7 +86,13 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   <div class="game-heading"><h2>🎈 Лопни кульку!</h2><p id="instruction" aria-live="polite">Торкнися будь-якої кульки!</p></div>
   <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div></div>
   <div class="settings" role="group" aria-label="Режим гри"><button type="button" class="mode selected" data-mode="free" aria-pressed="true">🎈 Просто грати</button><button type="button" class="mode" data-mode="colors" aria-pressed="false">🎨 Вивчаємо кольори</button></div>
+  <div class="voice-controls" role="group" aria-label="Керування голосовими підказками">
+    <button type="button" class="voice-button" id="voice-toggle" aria-pressed="true">🗣️ Голос увімкнено</button>
+    <button type="button" class="voice-button" id="repeat-instruction">🔁 Повторити підказку</button>
+  </div>
+  <label class="auto-control"><input type="checkbox" id="auto-voice" checked> Автоматично озвучувати нове завдання</label>
   <p class="tip">Немає таймера й помилок — тільки гра та цікаві відкриття.</p>
+  <p class="voice-note" id="voice-note">Голос українською залежить від встановлених голосів браузера й Android.</p>
 </section>
 </main>
 <script>
@@ -87,6 +101,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   const home=document.getElementById("home"),game=document.getElementById("game"),field=document.getElementById("field");
   const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
   const instruction=document.getElementById("instruction"),scoreNode=document.getElementById("score"),feedback=document.getElementById("feedback"),soundButton=document.getElementById("sound");
+  const voiceButton=document.getElementById("voice-toggle"),repeatButton=document.getElementById("repeat-instruction"),autoCheckbox=document.getElementById("auto-voice"),voiceNote=document.getElementById("voice-note");
   const palette=[
     {name:"червону",hex:"#ff6e76",light:"#ffb1b5"},
     {name:"жовту",hex:"#ffcc4f",light:"#fff2a3"},
@@ -94,8 +109,48 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     {name:"зелену",hex:"#67c98b",light:"#b9f5cb"}
   ];
   let W=400,H=460,balloons=[],particles=[],score=0,mode="free",target=null,soundOn=true,audio=null,active=false;
+  const speechSupported=("speechSynthesis" in window)&&("SpeechSynthesisUtterance" in window);
+  let voiceOn=speechSupported,autoVoice=true,currentUtterance=null,speechTimer=0,wrongVoiceAt=0,praiseVoiceAt=0;
+  try{voiceOn=speechSupported&&localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
   let last=0,frameHandle=0,feedbackTimer=0,time=0;
   const rand=(a,b)=>Math.random()*(b-a)+a;
+  function stopSpeech(){
+    clearTimeout(speechTimer);speechTimer=0;
+    if(!speechSupported)return;
+    try{window.speechSynthesis.cancel();}catch(e){}
+    currentUtterance=null;
+  }
+  function instructionText(){return mode==="colors"&&target?"Знайди "+target.name+" кульку.":"Торкнися будь-якої кульки.";}
+  function speak(text){
+    if(!speechSupported||!active||!voiceOn||!soundOn||document.hidden)return false;
+    try{
+      const synth=window.speechSynthesis,utterance=new SpeechSynthesisUtterance(text);
+      utterance.lang="uk-UA";utterance.rate=.89;utterance.pitch=1.06;utterance.volume=.88;
+      const voices=synth.getVoices(),ukrainian=voices.find(v=>v.lang&&v.lang.toLowerCase().startsWith("uk"));
+      if(ukrainian)utterance.voice=ukrainian;
+      utterance.onend=()=>{if(currentUtterance===utterance)currentUtterance=null;};
+      utterance.onerror=()=>{if(currentUtterance===utterance)currentUtterance=null;};
+      synth.cancel();currentUtterance=utterance;synth.speak(utterance);
+      return true;
+    }catch(e){return false;}
+  }
+  function queueInstruction(delay=450){
+    clearTimeout(speechTimer);speechTimer=0;
+    if(!autoVoice||!voiceOn||!soundOn||!speechSupported||!active)return;
+    if(delay===0){speak(instructionText());return;}
+    speechTimer=setTimeout(()=>{speechTimer=0;speak(instructionText());},delay);
+  }
+  function syncAudioControls(){
+    soundButton.textContent=soundOn?"🔊":"🔇";
+    soundButton.setAttribute("aria-label",soundOn?"Вимкнути всі звуки":"Увімкнути всі звуки");
+    soundButton.setAttribute("aria-pressed",String(soundOn));
+    voiceButton.textContent=!speechSupported?"🗣️ Голос недоступний":voiceOn?"🗣️ Голос увімкнено":"🤫 Без голосу";
+    voiceButton.setAttribute("aria-pressed",String(voiceOn&&speechSupported));
+    voiceButton.disabled=!speechSupported;
+    repeatButton.disabled=!speechSupported||!voiceOn||!soundOn;
+    autoCheckbox.checked=autoVoice;autoCheckbox.disabled=!speechSupported||!voiceOn;
+    voiceNote.textContent=speechSupported?"Український голос залежить від встановлених голосів Android або браузера. Кнопка 🔊 вимикає всі звуки.":"Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
+  }
   function resize(){
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
     const oldW=W,oldH=H;W=r.width;H=r.height;
@@ -116,15 +171,20 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   }
   function fill(){
     balloons=[];for(let i=0;i<desiredCount();i++)balloons.push(newBalloon());
-    chooseTarget();
+    chooseTarget(false);
   }
-  function chooseTarget(){
-    if(mode!=="colors"){target=null;instruction.textContent="Торкнися будь-якої кульки!";return;}
+  function chooseTarget(announce=true,delay=400){
+    if(mode!=="colors"){
+      target=null;instruction.textContent="Торкнися будь-якої кульки!";
+      if(announce)queueInstruction(delay);
+      return;
+    }
     if(!balloons.length)return;
     target=balloons[Math.floor(rand(0,balloons.length))].color;
     instruction.textContent="";
-    const dot=document.createElement("span");dot.className="target-dot";dot.style.background=target.hex;
+    const dot=document.createElement("span");dot.className="target-dot";dot.style.background=target.hex;dot.setAttribute("aria-hidden","true");
     instruction.append("Знайди ",dot," "+target.name+" кульку!");
+    if(announce)queueInstruction(delay);
   }
   function rounded(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
   function drawBalloon(b){
@@ -189,31 +249,63 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     for(let i=balloons.length-1;i>=0;i--){
       const b=balloons[i],bx=b.x+Math.sin(time/1100+b.phase)*5;
       if(Math.pow((x-bx)/(b.r*.94),2)+Math.pow((y-b.y)/(b.r*1.13),2)>1)continue;
-      if(mode==="colors"&&target&&target.name!==b.color.name){cheer("Шукай "+target.name+" 💛");return;}
+      if(mode==="colors"&&target&&target.name!==b.color.name){
+        cheer("Шукай "+target.name+" 💛");
+        if(Date.now()-wrongVoiceAt>4500){wrongVoiceAt=Date.now();speak(instructionText());}
+        return;
+      }
       popSound();burst(bx,b.y,b.color.hex);balloons.splice(i,1);
       score++;scoreNode.textContent=String(score);cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
-      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget();}},170);
+      if(Date.now()-praiseVoiceAt>6500){
+        praiseVoiceAt=Date.now();
+        speak(mode==="colors"?"Так! Молодець!":"Чудово!");
+      }
+      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1100);}},170);
       return;
     }
     for(let i=0;i<4;i++)particles.push({x:x,y:y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
   }
   function renderRoute(){
+    const wasActive=active;
     active=location.hash==="#balloons";home.hidden=active;game.hidden=!active;
-    if(active){resize();if(!balloons.length)fill();}
+    if(active){
+      resize();if(!balloons.length)fill();
+      if(!wasActive&&mode==="free"&&autoVoice)speak("Привіт! Давай лопати кульки!");
+      else if(!wasActive)queueInstruction(0);
+    }else{stopSpeech();}
   }
-  document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";});
-  document.getElementById("go-home").addEventListener("click",()=>{location.hash="";});
+  document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";renderRoute();});
+  document.getElementById("go-home").addEventListener("click",()=>{location.hash="";renderRoute();});
   document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
-    mode=btn.dataset.mode;
+    stopSpeech();mode=btn.dataset.mode;
     document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
-    chooseTarget();
+    chooseTarget(true,0);
   }));
-  soundButton.addEventListener("click",()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊":"🔇";soundButton.setAttribute("aria-label",soundOn?"Вимкнути звук":"Увімкнути звук");soundButton.setAttribute("aria-pressed",String(soundOn));});
+  soundButton.addEventListener("click",()=>{
+    soundOn=!soundOn;
+    if(!soundOn)stopSpeech();else queueInstruction(0);
+    syncAudioControls();
+  });
+  voiceButton.addEventListener("click",()=>{
+    voiceOn=!voiceOn;
+    try{localStorage.setItem("kids-voice-enabled",String(voiceOn));}catch(e){}
+    if(!voiceOn)stopSpeech();else if(autoVoice)queueInstruction(0);
+    syncAudioControls();
+  });
+  repeatButton.addEventListener("click",()=>{
+    stopSpeech();speak(instructionText());
+  });
+  autoCheckbox.addEventListener("change",()=>{
+    autoVoice=autoCheckbox.checked;
+    try{localStorage.setItem("kids-voice-auto",String(autoVoice));}catch(e){}
+    if(!autoVoice)stopSpeech();else queueInstruction(0);
+    syncAudioControls();
+  });
   canvas.addEventListener("pointerdown",touch);
   window.addEventListener("resize",()=>{if(active)resize();});
   window.addEventListener("hashchange",renderRoute);
-  document.addEventListener("visibilitychange",()=>{last=0;});
-  renderRoute();frameHandle=requestAnimationFrame(frame);
+  document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopSpeech();});
+  syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);
   if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
 </script>
