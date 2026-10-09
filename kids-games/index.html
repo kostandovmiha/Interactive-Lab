@@ -360,8 +360,59 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     feedback.textContent=text;feedback.classList.add("show");clearTimeout(feedbackTimer);
     feedbackTimer=setTimeout(()=>feedback.classList.remove("show"),850);
   }
+  function startCelebration(){
+    gameState="celebrating";
+    stopVoice();
+    clearTimeout(feedbackTimer);
+    feedback.classList.remove("show");
+    celebrationTick=0;
+    celebrationHold=0;
+    // Fill out the view for the chain reaction even if a new balloon was below the viewport.
+    balloons.forEach(b=>{
+      if(b.y< -b.r*.3||b.y>H+b.r*.3)b.y=rand(b.r+16,Math.max(b.r+17,H-b.r-20));
+    });
+  }
+  function updateCelebration(dt){
+    celebrationTick+=dt;
+    if(balloons.length){
+      if(celebrationTick < .14)return;
+      celebrationTick=0;
+      const i=Math.floor(rand(0,balloons.length));
+      const b=balloons.splice(i,1)[0];
+      const x=b.x+Math.sin(time/1100+b.phase)*5;
+      burst(x,b.y,b.color.hex);
+      burst(x,b.y,"#ffffff");
+      popSound();
+      return;
+    }
+    celebrationHold+=dt;
+    if(celebrationHold>=1.1){
+      gameState="won";
+      winOverlay.hidden=false;
+      setVoiceState("🏆 100 кульок! Ура! Перемога!","ok");
+    }
+  }
+  function resetGame(){
+    gameVersion++;
+    gameState="playing";
+    celebrationTick=0;
+    celebrationHold=0;
+    score=0;freePops=0;colorBag=[];particles=[];
+    balloons=[];target=null;
+    winOverlay.hidden=true;
+    feedback.classList.remove("show");
+    clearTimeout(feedbackTimer);
+    stopVoice();
+    fill();
+    refreshProgress();
+    if(active){
+      restoreAudioContext();
+      if(autoVoice)queueInstruction(350);
+    }
+  }
   function touch(e){
-    e.preventDefault();if(!active)return;
+    e.preventDefault();
+    if(!active||gameState!=="playing")return;
     const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
     for(let i=balloons.length-1;i>=0;i--){
       const b=balloons[i],bx=b.x+Math.sin(time/1100+b.phase)*5;
@@ -372,15 +423,26 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
         return;
       }
       popSound();burst(bx,b.y,b.color.hex);balloons.splice(i,1);
-      score++;scoreNode.textContent=String(score);cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
+      score++;
+      if(mode==="free")freePops++;
+      refreshProgress();
+      if(score>=GOAL){startCelebration();return;}
+      if(mode==="free"&&freePops%STEP===0)cheer("⚡ Швидше! Рівень "+speedLevel());
+      else cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
       if(Date.now()-praiseVoiceAt>6500){
         praiseVoiceAt=Date.now();
         playClip(mode==="colors"?"yes":["great","wonderful","super","hooray","excellent","good-job"][score%6]);
       }
-      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1950);}},170);
+      const version=gameVersion;
+      setTimeout(()=>{
+        if(active&&gameState==="playing"&&version===gameVersion){
+          balloons.push(newBalloon(true));
+          if(mode==="colors")chooseTarget(true,1950);
+        }
+      },170);
       return;
     }
-    for(let i=0;i<4;i++)particles.push({x:x,y:y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
+    for(let i=0;i<4;i++)particles.push({x,y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
   }
   function renderRoute(){
     const wasActive=active;
@@ -394,10 +456,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";renderRoute();});
   document.getElementById("go-home").addEventListener("click",()=>{location.hash="";renderRoute();});
   document.getElementById("recover-audio").addEventListener("click",recoverSound);
+  document.getElementById("restart-game").addEventListener("click",resetGame);
   document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
     stopVoice();mode=btn.dataset.mode;
+    colorBag=[];
+    balloons.forEach(b=>{b.color=nextColor();});
     document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
-    chooseTarget(true,0);
+    refreshProgress();
+    if(gameState==="playing")chooseTarget(true,0);
   }));
   soundButton.addEventListener("click",()=>{
     soundOn=!soundOn;
@@ -423,7 +489,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   window.addEventListener("resize",()=>{if(active)resize();});
   window.addEventListener("hashchange",renderRoute);
   document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopVoice();});
-  syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);checkVoiceAssets();
+  syncAudioControls();renderRoute();refreshProgress();frameHandle=requestAnimationFrame(frame);checkVoiceAssets();
   if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
 </script>
