@@ -428,7 +428,7 @@ $("main").oninput=e=>{
  if(editor){saveRichNote(editor);rememberRichSelection();return;}
  if(el.dataset.note){const n=obj.l.notes.find(n=>n.id===el.dataset.note);if(n){n[el.dataset.field]=el.value;changed();}}
 };
-$("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
+$("main").onchange=e=>{const el=e.target;
  if(el.id==="watchWeek"){
   const watch=getWatch(),completed=watch.completed[el.value]||[];
   const next=Array.isArray(completed)?Math.max(0,...completed.map(x=>normalizeVideo(x)||0))+1:1;
@@ -437,6 +437,7 @@ $("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
   if(timeInput)timeInput.value="";
   return;
  }
+ const obj=chosen();if(!obj)return;
  if(el.id==="lessonStatus"){obj.l.status=el.value;changed();render();}
  if(el.id==="lessonName"||el.id==="materialURL")render();
  if(el.dataset.note&&el.dataset.field==="type")render();
