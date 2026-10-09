@@ -69,11 +69,14 @@ def main() -> None:
         raw = work / "wav"
         raw.mkdir()
 
-        # One Piper process for all clips: avoids reloading the model repeatedly.
-        jobs = "\n".join(json.dumps({
-            "text": phrase, "output_file": str(raw / (name + ".wav"))
-        }, ensure_ascii=False) for name, phrase in PHRASES.items()) + "\n"
-        run(["piper", "--model", str(model), "--json-input"], input_text=jobs)
+        # Piper CLI v1.8 accepts one output_file at a time (no --json-input).
+        # Short phrases keep the memory and synthesis cost low.
+        for name, phrase in PHRASES.items():
+            wav = raw / (name + ".wav")
+            run(["piper", "--model", str(model), "--output-file", str(wav)],
+                input_text=phrase + "\n")
+            if not wav.exists() or wav.stat().st_size < 500:
+                raise RuntimeError("Missing or empty TTS output: " + name)
 
         for name in PHRASES:
             wav = raw / (name + ".wav")
