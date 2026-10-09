@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#151628">
+<meta name="description" content="Voice Lab — порівняння українських голосів для дитячих ігор Interactive Lab.">
+<title>Voice Lab — ElevenLabs · Interactive Lab</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#f0eefb;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;background:radial-gradient(ellipse 70% 45% at 80% -5%,#443374 0%,transparent 76%),#121529}
+button,input{font:inherit}
+button{cursor:pointer}
+a{color:#cbb4ff}
+.shell{max-width:1030px;margin:auto;padding:22px clamp(16px,3.5vw,32px) 70px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.back{color:#a6b1d2;font-size:14px;text-decoration:none}
+.mark{font-size:12px;color:#bda0ff;letter-spacing:.13em;font-weight:850}
+.hero{margin:55px 0 30px;max-width:750px}
+.kicker{display:inline-flex;padding:7px 12px;border-radius:90px;border:1px solid #765aa3;background:#34284f;font-size:11px;font-weight:800;letter-spacing:.1em;color:#d0b5ff}
+h1{font-size:clamp(39px,7vw,69px);letter-spacing:-.055em;line-height:1.03;margin:17px 0 12px}
+h1 span{color:#c6a4fb}
+.lead{color:#adb6d1;line-height:1.6;font-size:clamp(15px,2vw,18px);margin:0}
+.panel{border:1px solid #ffffff22;background:#22243b;border-radius:22px;padding:20px 23px}
+.sample-label{color:#ad9ad4;font-size:11px;letter-spacing:.12em;font-weight:850;text-transform:uppercase}
+.sample{font-size:22px;line-height:1.4;font-weight:780;letter-spacing:-.015em;margin:9px 0 15px;color:#fff}
+.actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid #756b99;background:#34314e;border-radius:11px;padding:11px 16px;font-size:13px;font-weight:800;color:#efebff}
+.btn:hover{background:#4d406e}
+.btn.primary{background:#b49bf5;color:#171326;border-color:#b49bf5}
+.btn:focus-visible,.card:focus-within{outline:3px solid #b49bf5;outline-offset:2px}
+.note{font-size:12px;color:#a8b0ca;line-height:1.6}
+.headline{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:33px 0 14px}
+h2{font-size:23px;margin:0;letter-spacing:-.025em}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{border:1px solid #59506c;background:#202439;border-radius:20px;padding:17px;display:flex;flex-direction:column;gap:12px}
+.card.winner{background:#30244a;border-color:#c5a0ef}
+.card-top{display:flex;align-items:center;gap:12px}
+.avatar{font-size:30px;background:#51406e;border-radius:14px;display:grid;place-items:center;height:54px;width:54px;flex-shrink:0}
+.card-name{font-size:17px;font-weight:850;line-height:1.3;color:#f8f5ff}
+.card-source{color:#b1a6cc;font-size:12px;margin-top:3px}
+.status{font-size:12px;color:#b6bfda;min-height:19px}
+.card-actions{display:flex;gap:7px;flex-wrap:wrap}
+.card-actions .btn{flex:1;min-width:120px}
+.file{display:none}
+.card footer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #ffffff1a;padding-top:12px}
+.rate{background:transparent;border:0;color:#a9a0bc;font-size:22px;padding:0 2px;line-height:1.2}
+.rate.on{color:#ffd785}
+.winner-button{font-size:12px;color:#d8c5fc;background:transparent;border:1px solid #786a93;border-radius:10px;padding:9px 10px}
+.winner-button[aria-pressed="true"]{background:#6f50a3;color:#fff;border-color:#a686d8}
+details{margin-top:30px}
+details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
+.steps{color:#b0bad4;line-height:1.8;font-size:14px;max-width:740px}
+.steps a{font-weight:800}
+.links{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.copy-status{font-size:12px;color:#bcffc7}
+.footer{margin-top:45px;padding-top:20px;border-top:1px solid #ffffff23;font-size:12px;color:#9da8c8;line-height:1.8}
+@media(max-width:660px){.hero{margin:35px 0 25px}.grid{grid-template-columns:1fr}.panel{padding:17px}.sample{font-size:19px}.headline{align-items:start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top"><a class="back" href="../">← Interactive Lab</a><span class="mark">VOICE EXPERIMENTS ✦</span></div>
+  <div class="hero"><span class="kicker">KIDS PLAYGROUND · VOICE STUDY</span><h1>Voice <span>Lab.</span> 🎙️</h1><p class="lead">Обери найприємніший український голос для дитячих ігор. Порівнюємо однакову фразу, слухаємо інтонації та зберігаємо фаворита.</p></div>
+  <section class="panel" aria-label="Фраза для порівняння">
+    <div class="sample-label">Тестова фраза для всіх голосів</div>
+    <p class="sample" id="phrase">Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!</p>
+    <div class="actions"><button id="copy" class="btn primary" type="button">Копіювати фразу</button><span id="copy-status" class="copy-status" aria-live="polite"></span></div>
+  </section>
+  <div class="headline"><h2>Порівняння голосів</h2><span class="note" id="count">0 із 5 зразків завантажено</span></div>
+  <div class="grid" id="cards"></div>
+  <details open>
+    <summary>Як додати аудіозразки ElevenLabs?</summary>
+    <div class="steps">
+      <p>У <a href="https://elevenlabs.io/app/voice-library" target="_blank" rel="noopener noreferrer">ElevenLabs Voice Library ↗</a> послухай жіночі голоси й обери кілька, які доступні твоєму тарифу. Натисни «Копіювати фразу», встав її в <a href="https://elevenlabs.io/app/speech-synthesis/text-to-speech" target="_blank" rel="noopener noreferrer">Text to Speech ↗</a>, згенеруй і збережи кожен варіант у MP3.</p>
+      <p>Натисни «Додати аудіо» у відповідній картці або просто перетягни файл на неї. Зразки зберігаються <strong>тільки в цьому браузері</strong>, а не завантажуються на сервер. Познач найкращий голос зірочками й кнопкою «Обрати».</p>
+      <p>Також підготовлено захищений GitHub Actions workflow для автоматичного створення зразків ElevenLabs після налаштування API-ключа. У безкоштовному тарифі Voice Library через API недоступна; через сайт можна використовувати доступні безкоштовні голоси.</p>
+    </div>
+  </details>
+  <div class="links"><a class="btn" href="../kids-games/#balloons">🎈 До гри</a><a class="btn" href="https://github.com/kostandovmiha/Interactive-Lab/actions/workflows/elevenlabs-voice-samples.yml" target="_blank" rel="noopener noreferrer">⚙️ Автоматична генерація (GitHub)</a></div>
+  <footer class="footer">Voice Lab — ElevenLabs · Interactive Lab. Ця сторінка не передає завантажене аудіо або ключі API. Згенеровані на безкоштовному тарифі ElevenLabs записи призначені лише для некомерційного використання з належною атрибуцією: <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">elevenlabs.io</a>.</footer>
+</div>
+<script>
+(() => {
+  "use strict";
+  const PHRASE="Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!";
+  const N=5,slots=Array.from({length:N},(_,i)=>({name:"Голос "+(i+1),blob:null,url:null,remote:null,rating:0}));
+  let playing=null,winner=-1,db=null;
+  const el=document.getElementById("cards");
+  const countEl=document.getElementById("count");
+  const audio=new Audio();
+  audio.addEventListener("ended",()=>{playing=null;refresh();});
+  audio.addEventListener("error",()=>{playing=null;refresh();});
+  const defaultNames=["Голос 1","Голос 2","Голос 3","Голос 4","Голос 5"];
+  function openDb(){
+    return new Promise(resolve=>{
+      if(!window.indexedDB){resolve(null);return;}
+      try{
+        const req=indexedDB.open("kids-voice-lab",1);
+        req.onupgradeneeded=()=>req.result.createObjectStore("clips");
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>resolve(null);
+        req.onblocked=()=>resolve(null);
+      }catch(e){resolve(null);}
+    });
+  }
+  function readStored(i){
+    return new Promise(resolve=>{
+      if(!db){resolve(null);return;}
+      try{const tx=db.transaction("clips","readonly"),req=tx.objectStore("clips").get(i);
+        req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>resolve(null);}
+      catch(e){resolve(null);}
+    });
+  }
+  function store(i,blob){
+    if(!db)return;
+    try{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").put(blob,i);}catch(e){}
+  }
+  function ratingKey(i){return "voice-lab-rating-"+i;}
+  function setRating(i,n){
+    slots[i].rating=n;
+    try{localStorage.setItem(ratingKey(i),String(n));}catch(e){}
+    refresh();
+  }
+  function setWinner(i){
+    winner=(winner===i)?-1:i;
+    try{localStorage.setItem("voice-lab-winner",String(winner));}catch(e){}
+    refresh();
+  }
+  function rename(i){
+    const next=window.prompt("Назва голосу:",slots[i].name);
+    if(!next||!next.trim())return;
+    slots[i].name=next.trim().slice(0,60);
+    try{localStorage.setItem("voice-lab-name-"+i,slots[i].name);}catch(e){}
+    refresh();
+  }
+  function importFile(i,file){
+    if(!file)return;
+    if(!/^audio\//.test(file.type)&&!/\.(mp3|wav|ogg|m4a)$/i.test(file.name)){window.alert("Оберіть аудіофайл MP3, WAV, OGG або M4A.");return;}
+    if(file.size>20*1024*1024){window.alert("Аудіо має бути менше 20 МБ.");return;}
+    if(playing===i){audio.pause();playing=null;}
+    if(slots[i].url)URL.revokeObjectURL(slots[i].url);
+    slots[i].blob=file;slots[i].url=URL.createObjectURL(file);
+    if(slots[i].name===defaultNames[i])slots[i].name=file.name.replace(/\.[^.]+$/,"").slice(0,60);
+    try{localStorage.setItem("voice-lab-name-"+i,slots[i].name);}catch(e){}
+    store(i,file);refresh();
+  }
+  function source(i){return slots[i].url||slots[i].remote;}
+  async function play(i){
+    if(playing===i){audio.pause();playing=null;refresh();return;}
+    if(!source(i))return;
+    audio.pause();audio.src=source(i);playing=i;refresh();
+    try{await audio.play();}catch(e){playing=null;window.alert("Не вдалося відтворити цей аудіофайл.");refresh();}
+  }
+  function refresh(){
+    el.replaceChildren();
+    let available=0;
+    for(let i=0;i<N;i++){
+      const s=slots[i];
+      if(source(i))available++;
+      const card=document.createElement("article");card.className="card"+(winner===i?" winner":"");
+      card.addEventListener("dragover",e=>{e.preventDefault();card.style.borderColor="#d7a6fc";});
+      card.addEventListener("dragleave",()=>card.style.borderColor="");
+      card.addEventListener("drop",e=>{e.preventDefault();card.style.borderColor="";importFile(i,e.dataTransfer.files[0]);});
+      const top=document.createElement("div");top.className="card-top";
+      const icon=document.createElement("span");icon.className="avatar";icon.textContent=["🌷","🌼","🦋","🌈","⭐"][i];
+      const meta=document.createElement("div");
+      const name=document.createElement("div");name.className="card-name";name.textContent=s.name;
+      const label=document.createElement("div");label.className="card-source";
+      label.textContent=s.blob?"Мій локальний зразок":s.remote?"Згенеровано через ElevenLabs":"Зразок ще не додано";
+      meta.append(name,label);top.append(icon,meta);
+      const status=document.createElement("div");status.className="status";
+      status.textContent=source(i)?"Готовий до прослуховування":"Додай MP3 / WAV / OGG або перетягни файл сюди";
+      const actions=document.createElement("div");actions.className="card-actions";
+      const listen=document.createElement("button");listen.className="btn primary";listen.type="button";listen.textContent=playing===i?"⏸ Зупинити":"▶ Послухати";listen.disabled=!source(i);listen.addEventListener("click",()=>play(i));
+      const add=document.createElement("button");add.className="btn";add.type="button";add.textContent="📁 Додати аудіо";
+      const input=document.createElement("input");input.type="file";input.className="file";input.accept="audio/*,.mp3,.ogg,.wav,.m4a";
+      input.addEventListener("change",()=>{importFile(i,input.files[0]);});
+      add.addEventListener("click",()=>input.click());
+      const change=document.createElement("button");change.className="btn";change.type="button";change.textContent="✏️ Назвати";change.addEventListener("click",()=>rename(i));
+      actions.append(listen,add,change,input);
+      const footer=document.createElement("footer");
+      const stars=document.createElement("div");
+      for(let n=1;n<=5;n++){const star=document.createElement("button");star.className="rate"+(s.rating>=n?" on":"");star.type="button";star.textContent="★";star.title=n+" з 5";star.setAttribute("aria-label","Оцінка "+n+" з 5");star.addEventListener("click",()=>setRating(i,n));stars.append(star);}
+      const win=document.createElement("button");win.className="winner-button";win.type="button";win.textContent=winner===i?"✓ Обраний":"♡ Обрати";win.setAttribute("aria-pressed",String(winner===i));win.addEventListener("click",()=>setWinner(i));
+      footer.append(stars,win);card.append(top,status,actions,footer);el.append(card);
+    }
+    countEl.textContent=available+" із 5 зразків завантажено";
+  }
+  document.getElementById("copy").addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText(PHRASE);document.getElementById("copy-status").textContent="✓ Скопійовано!";}
+    catch(e){const textarea=document.createElement("textarea");textarea.value=PHRASE;document.body.append(textarea);textarea.select();document.execCommand("copy");textarea.remove();document.getElementById("copy-status").textContent="✓ Скопійовано!";}
+  });
+  async function loadRemote(){
+    try{
+      const r=await fetch("./samples/manifest.json",{cache:"no-store"});
+      if(!r.ok)return;
+      const j=await r.json();
+      if(!Array.isArray(j.voices))return;
+      for(let i=0;i<Math.min(N,j.voices.length);i++){
+        const entry=j.voices[i];
+        if(!entry||typeof entry.file!=="string"||!/^voice-[1-5]\.mp3$/.test(entry.file))continue;
+        slots[i].remote="./samples/"+entry.file;
+        if(!slots[i].blob&&typeof entry.name==="string"&&entry.name.trim()){
+          if(slots[i].name===defaultNames[i])slots[i].name=entry.name.trim().slice(0,60);
+        }
+      }
+      refresh();
+    }catch(e){}
+  }
+  async function init(){
+    try{
+      winner=parseInt(localStorage.getItem("voice-lab-winner"),10);
+      if(!Number.isInteger(winner)||winner<0||winner>=N)winner=-1;
+      slots.forEach((s,i)=>{s.rating=Math.max(0,Math.min(5,parseInt(localStorage.getItem(ratingKey(i)),10)||0));s.name=localStorage.getItem("voice-lab-name-"+i)||defaultNames[i];});
+    }catch(e){}
+    db=await openDb();
+    const stored=await Promise.all(slots.map((s,i)=>readStored(i)));
+    stored.forEach((f,i)=>{if(f instanceof Blob){slots[i].blob=f;slots[i].url=URL.createObjectURL(f);}});
+    refresh();await loadRemote();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
