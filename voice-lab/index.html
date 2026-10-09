@@ -40,7 +40,9 @@ h2{font-size:23px;margin:0;letter-spacing:-.025em}
 .avatar{font-size:30px;background:#51406e;border-radius:14px;display:grid;place-items:center;height:54px;width:54px;flex-shrink:0}
 .card-name{font-size:17px;font-weight:850;line-height:1.3;color:#f8f5ff}
 .card-source{color:#b1a6cc;font-size:12px;margin-top:3px}
-.status{font-size:12px;color:#b6bfda;min-height:19px}
+.status{font-size:12px;color:#b6bfda;min-height:19px;line-height:1.5}
+.status.error{color:#ffb1a4;background:#5b2b38;border:1px solid #935365;padding:10px 12px;border-radius:10px}
+.media-details{font-size:11px;color:#b4bfd9;overflow-wrap:anywhere}
 .card-actions{display:flex;gap:7px;flex-wrap:wrap}
 .card-actions .btn{flex:1;min-width:120px}
 .file{display:none}
@@ -85,13 +87,21 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
 (() => {
   "use strict";
   const PHRASE="Привіт! Давай гратися з кульками! Знайди червону кульку. Ура! Молодець!";
-  const N=5,slots=Array.from({length:N},(_,i)=>({name:"Голос "+(i+1),blob:null,url:null,remote:null,rating:0}));
+  const N=5,slots=Array.from({length:N},(_,i)=>({name:"Голос "+(i+1),blob:null,url:null,remote:null,rating:0,error:"",format:"",size:0}));
   let playing=null,winner=-1,db=null;
   const el=document.getElementById("cards");
   const countEl=document.getElementById("count");
   const audio=new Audio();
   audio.addEventListener("ended",()=>{playing=null;refresh();});
-  audio.addEventListener("error",()=>{playing=null;refresh();});
+  audio.addEventListener("error",()=>{
+    if(playing===null)return;
+    const i=playing,err=audio.error,code=err&&err.code;
+    slots[i].error=code===4
+      ?"Chrome не розпізнає формат файлу (MediaError 4). Перевір, чи це справжній MP3, а не сторінка завантаження."
+      :code===3?"Chrome не зміг декодувати аудіо (MediaError 3). Спробуй завантажити MP3 заново."
+      :"Помилка аудіофайла (MediaError "+String(code||"?")+").";
+    playing=null;refresh();
+  });
   const defaultNames=["Голос 1","Голос 2","Голос 3","Голос 4","Голос 5"];
   function openDb(){
     return new Promise(resolve=>{
@@ -135,23 +145,59 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
     try{localStorage.setItem("voice-lab-name-"+i,slots[i].name);}catch(e){}
     refresh();
   }
-  function importFile(i,file){
+  // Some browsers label downloaded MP3 previews as application/octet-stream.
+  // Detect the actual container instead of trusting filename or file.type.
+  async function inspectAudio(blob){
+    if(!blob||!blob.size)throw new Error("Файл порожній (0 байтів). Завантаж аудіо з ElevenLabs повторно.");
+    const header=new Uint8Array(await blob.slice(0,40).arrayBuffer());
+    const ascii=(start,end)=>String.fromCharCode(...header.slice(start,end));
+    let mime="",format="";
+    if(ascii(0,3)==="ID3"||(header[0]===0xff&&(header[1]&0xe0)===0xe0)){mime="audio/mpeg";format="MP3";}
+    else if(ascii(0,4)==="RIFF"&&ascii(8,12)==="WAVE"){mime="audio/wav";format="WAV";}
+    else if(ascii(0,4)==="OggS"){mime="audio/ogg";format="OGG";}
+    else if(ascii(4,8)==="ftyp"){mime="audio/mp4";format="M4A/MP4";}
+    else if(ascii(0,4)==="fLaC"){mime="audio/flac";format="FLAC";}
+    if(!mime)throw new Error("Це не схоже на аудіофайл MP3/WAV/OGG/M4A. Можливо, з ElevenLabs збереглася сторінка замість звуку.");
+    return {format,mime,blob:new Blob([blob],{type:mime}),size:blob.size};
+  }
+  function readableError(error){
+    if(error?.name==="NotAllowedError")return "Chrome заблокував відтворення. Натисни «Послухати» ще раз.";
+    if(error?.name==="NotSupportedError")return "Chrome не підтримує або не розпізнає цей файл. Завантаж MP3 з ElevenLabs (не попередній перегляд сторінки).";
+    if(error?.name==="AbortError")return "Відтворення було перервано. Спробуй ще раз.";
+    return "Не вдалося відтворити: "+(error?.name||"помилка")+(error?.message?": "+error.message:"");
+  }
+  async function importFile(i,file){
     if(!file)return;
-    if(!/^audio\//.test(file.type)&&!/\.(mp3|wav|ogg|m4a)$/i.test(file.name)){window.alert("Оберіть аудіофайл MP3, WAV, OGG або M4A.");return;}
-    if(file.size>20*1024*1024){window.alert("Аудіо має бути менше 20 МБ.");return;}
-    if(playing===i){audio.pause();playing=null;}
-    if(slots[i].url)URL.revokeObjectURL(slots[i].url);
-    slots[i].blob=file;slots[i].url=URL.createObjectURL(file);
-    if(slots[i].name===defaultNames[i])slots[i].name=file.name.replace(/\.[^.]+$/,"").slice(0,60);
-    try{localStorage.setItem("voice-lab-name-"+i,slots[i].name);}catch(e){}
-    store(i,file);refresh();
+    if(file.size>20*1024*1024){slots[i].error="Файл завеликий (понад 20 МБ).";refresh();return;}
+    try{
+      const inspected=await inspectAudio(file);
+      if(playing===i){audio.pause();playing=null;}
+      if(slots[i].url)URL.revokeObjectURL(slots[i].url);
+      slots[i].blob=inspected.blob;
+      slots[i].url=URL.createObjectURL(inspected.blob);
+      slots[i].format=inspected.format;slots[i].size=inspected.size;slots[i].error="";
+      if(slots[i].name===defaultNames[i])slots[i].name=file.name.replace(/\.[^.]+$/,"").slice(0,60);
+      try{localStorage.setItem("voice-lab-name-"+i,slots[i].name);}catch(e){}
+      store(i,inspected.blob);refresh();
+    }catch(error){slots[i].error=error.message||"Помилка читання файлу.";refresh();}
   }
   function source(i){return slots[i].url||slots[i].remote;}
   async function play(i){
     if(playing===i){audio.pause();playing=null;refresh();return;}
     if(!source(i))return;
-    audio.pause();audio.src=source(i);playing=i;refresh();
-    try{await audio.play();}catch(e){playing=null;window.alert("Не вдалося відтворити цей аудіофайл.");refresh();}
+    const s=slots[i];s.error="";
+    audio.pause();audio.src=source(i);audio.load();
+    playing=i;refresh();
+    try{await audio.play();}
+    catch(error){
+      if(playing===i){
+        s.error=readableError(error);
+        playing=null;refresh();
+      }else if(s.error){
+        // media 'error' event may have already captured a more specific MediaError code.
+        refresh();
+      }
+    }
   }
   function refresh(){
     el.replaceChildren();
@@ -171,7 +217,10 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
       label.textContent=s.blob?"Мій локальний зразок":s.remote?"Згенеровано через ElevenLabs":"Зразок ще не додано";
       meta.append(name,label);top.append(icon,meta);
       const status=document.createElement("div");status.className="status";
-      status.textContent=source(i)?"Готовий до прослуховування":"Додай MP3 / WAV / OGG або перетягни файл сюди";
+      status.textContent=s.error|| (source(i)?"Готовий до прослуховування":"Додай MP3 / WAV / OGG або перетягни файл сюди");
+      status.classList.toggle("error",!!s.error);
+      const details=document.createElement("div");details.className="media-details";
+      if(s.blob)details.textContent=(s.format||s.blob.type||"Формат невідомий")+" · "+(Math.round((s.size||s.blob.size)/1024*10)/10)+" КіБ · збережено у браузері";
       const actions=document.createElement("div");actions.className="card-actions";
       const listen=document.createElement("button");listen.className="btn primary";listen.type="button";listen.textContent=playing===i?"⏸ Зупинити":"▶ Послухати";listen.disabled=!source(i);listen.addEventListener("click",()=>play(i));
       const add=document.createElement("button");add.className="btn";add.type="button";add.textContent="📁 Додати аудіо";
@@ -184,7 +233,7 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
       const stars=document.createElement("div");
       for(let n=1;n<=5;n++){const star=document.createElement("button");star.className="rate"+(s.rating>=n?" on":"");star.type="button";star.textContent="★";star.title=n+" з 5";star.setAttribute("aria-label","Оцінка "+n+" з 5");star.addEventListener("click",()=>setRating(i,n));stars.append(star);}
       const win=document.createElement("button");win.className="winner-button";win.type="button";win.textContent=winner===i?"✓ Обраний":"♡ Обрати";win.setAttribute("aria-pressed",String(winner===i));win.addEventListener("click",()=>setWinner(i));
-      footer.append(stars,win);card.append(top,status,actions,footer);el.append(card);
+      footer.append(stars,win);card.append(top,status,details,actions,footer);el.append(card);
     }
     countEl.textContent=available+" із 5 зразків завантажено";
   }
@@ -217,7 +266,16 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
     }catch(e){}
     db=await openDb();
     const stored=await Promise.all(slots.map((s,i)=>readStored(i)));
-    stored.forEach((f,i)=>{if(f instanceof Blob){slots[i].blob=f;slots[i].url=URL.createObjectURL(f);}});
+    await Promise.all(stored.map(async(f,i)=>{
+      if(!(f instanceof Blob))return;
+      try{
+        const inspected=await inspectAudio(f);
+        slots[i].blob=inspected.blob;slots[i].url=URL.createObjectURL(inspected.blob);
+        slots[i].format=inspected.format;slots[i].size=inspected.size;
+      }catch(error){
+        slots[i].error="Раніше збережений файл: "+(error.message||"неправильний формат")+". Додай справжній MP3 повторно.";
+      }
+    }));
     refresh();await loadRemote();
   }
   init();
