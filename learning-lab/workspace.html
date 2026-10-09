@@ -207,7 +207,7 @@ const planTokenRenewal=()=>{
  clearTimeout(tokenTimer);
  if(!expiresAt)return;
  // Best effort only. Browser popup restrictions may require an explicit click.
- const delay=Math.max(1000,expiresAt-Date.now()-2*60*1000);
+ const delay=Math.max(1000,expiresAt-Date.now()-45*1000);
  tokenTimer=setTimeout(async()=>{
   if(!connected||!config.folderId||!navigator.onLine)return;
   try{await auth({silent:true});if(dirty)await flush();}
@@ -302,7 +302,7 @@ const changed=()=>{dirty=true;revision++;sync(connected?"Очікує збере
 async function request(url,opts={}){
  if(!tokenReady()){
   try{await auth({silent:true});}
-  catch(e){sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
+  catch(e){connected=false;sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
  }
  const {alreadyRetried,...fetchOptions}=opts;
  const apiURL=url.startsWith("http")?url:"https://www.googleapis.com/drive/v3/"+url;
@@ -311,7 +311,7 @@ async function request(url,opts={}){
   // Reject a revoked/expired token, then retry this request only once.
   clearToken();
   try{await auth({silent:true});}
-  catch(e){sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
+  catch(e){connected=false;sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
   return request(url,{...fetchOptions,alreadyRetried:true});
  }
  if(!r.ok){
@@ -334,7 +334,11 @@ async function flush(){
   if(!fileId){const created=await multipart({name:"course.json",mimeType:"application/json",parents:[config.folderId]},data,"application/json");fileId=created.id;}
   else await request("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(fileId)+"?uploadType=media",{method:"PATCH",body:data,headers:{"Content-Type":"application/json"}});
   if(rev===revision)dirty=false;sync(dirty?"Ще є зміни…":"Збережено на Google Drive",dirty?"":"ok");
- }catch(e){sync("Не збережено · помилка","err");toast(e.message);console.error(e);}
+ }catch(e){
+  sync(!tokenReady()?"Не збережено · потрібен вхід":"Не збережено · помилка","err");
+  if(tokenReady())toast(e.message);
+  console.error(e);
+}
  finally{saving=false;if(dirty&&connected)saveTimer=setTimeout(flush,5000);}
 }
 function waitGoogle(){
@@ -392,6 +396,8 @@ async function reconnect({silent=false}={}){
  if(!silent)sync("Підключення до Google…");
  await auth({silent});
  if(loaded){
+  // Reverify access to the existing course before claiming successful reconnection.
+  if(fileId)await request("files/"+encodeURIComponent(fileId)+"?fields=id");
   connected=true;
   if(dirty)await flush();
   else sync("Збережено на Google Drive","ok");
