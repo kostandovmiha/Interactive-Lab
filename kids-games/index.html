@@ -115,8 +115,8 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     <button type="button" class="voice-button" id="repeat-instruction">🔁 Повторити підказку</button>
   </div>
   <label class="auto-control"><input type="checkbox" id="auto-voice" checked> Автоматично озвучувати нове завдання</label>
-  <p class="tip">🎈 У вільній грі — 9 кольорів. Кожні 15 кульок швидкість зростає. На 100-й — свято!</p>
-  <p class="voice-note" id="voice-note">Голос українською залежить від встановлених голосів браузера й Android.</p>
+  <p class="tip">🎈 9 кольорів доступні в обох режимах. У вільній грі кожні 15 кульок швидкість зростає. На 100-й — свято!</p>
+  <p class="voice-note" id="voice-note">Окремі українські аудіозаписи для кожного кольору. Голоси браузера не потрібні.</p>
 </section>
 </main>
 <script>
@@ -138,12 +138,23 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     {name:"бірюзову",hex:"#10bbc8",light:"#a1f1ed"},
     {name:"коричневу",hex:"#966342",light:"#d7b593"}
   ];
-  const learningPalette=palette.slice(0,4); // Existing Ukrainian audio has only these four colors.
+  // All nine colors have prerecorded Ukrainian find/retry instructions.
+  const learningPalette=palette;
   const GOAL=100,STEP=15;
   let W=400,H=460,balloons=[],particles=[],score=0,freePops=0,colorBag=[],mode="free",target=null,soundOn=true,audio=null,active=false;
   let gameState="playing",gameVersion=0,celebrationTick=0,celebrationHold=0;
-  const CLIPS=["hello","free","red","yellow","blue","green","retry-red","retry-yellow","retry-blue","retry-green","great","wonderful","super","hooray","yes","again","excellent","good-job"];
-  const TARGET_CLIP={"червону":"red","жовту":"yellow","синю":"blue","зелену":"green"};
+  const CLIPS=[
+    "hello","free",
+    "red","yellow","blue","green","orange","purple","pink","turquoise","brown",
+    "retry-red","retry-yellow","retry-blue","retry-green",
+    "retry-orange","retry-purple","retry-pink","retry-turquoise","retry-brown",
+    "great","wonderful","super","hooray","yes","again","excellent","good-job"
+  ];
+  const TARGET_CLIP={
+    "червону":"red","жовту":"yellow","синю":"blue","зелену":"green",
+    "помаранчеву":"orange","фіолетову":"purple","рожеву":"pink",
+    "бірюзову":"turquoise","коричневу":"brown"
+  };
   // One shared voice player prevents 18 decoders from competing on mobile.
   const voicePlayer=new Audio();
   voicePlayer.preload="auto";
@@ -220,7 +231,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     repeatButton.disabled=!voiceOn||!soundOn;
     autoCheckbox.checked=autoVoice;
     autoCheckbox.disabled=!voiceOn;
-    voiceNote.textContent="Попередньо записаний український жіночий голос. Працює без системного TTS у Chrome та на Android.";
+    voiceNote.textContent="Для всіх 9 кольорів є українські записи: «Знайди...» та «Шукай...». Працюють без системного TTS.";
     if(!voiceOn||!soundOn)setVoiceState("🤫 Озвучення вимкнено.");
     else if(voiceAssetsReady&&!currentAudio)setVoiceState("✅ Голосові файли доступні.","ok");
   }
@@ -265,7 +276,9 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
       return;
     }
     if(!balloons.length)return;
+    // Pick a color that is present among the balloons, so every prompt can be completed.
     target=balloons[Math.floor(rand(0,balloons.length))].color;
+    if(!TARGET_CLIP[target.name]){setVoiceState("⚠️ Для кольору немає голосової підказки.","error");return;}
     instruction.textContent="";
     const dot=document.createElement("span");dot.className="target-dot";dot.style.background=target.hex;dot.setAttribute("aria-hidden","true");
     instruction.append("Знайди ",dot," "+target.name+" кульку!");
