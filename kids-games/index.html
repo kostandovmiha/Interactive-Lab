@@ -295,7 +295,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
         praiseVoiceAt=Date.now();
         playClip(mode==="colors"?"yes":["great","wonderful","super","hooray","excellent","good-job"][score%6]);
       }
-      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1100);}},170);
+      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1950);}},170);
       return;
     }
     for(let i=0;i<4;i++)particles.push({x:x,y:y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
