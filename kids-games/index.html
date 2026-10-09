@@ -39,6 +39,10 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .back{background:#fff;border:0;color:#695393;border-radius:15px;font-size:16px;font-weight:800;padding:12px 17px;box-shadow:0 4px 0 #cfc6e7}
 .metrics{display:flex;align-items:center;gap:10px}
 .counter{border-radius:18px;background:#fff9;padding:10px 17px;font-size:19px;font-weight:900;color:#7652bb}
+.speed-level{border-radius:15px;padding:9px 12px;background:#fff9;color:#a66c3c;font-size:14px;font-weight:900;white-space:nowrap}
+.speed-level[hidden]{display:none}
+.goal-progress{height:12px;max-width:560px;margin:0 auto 12px;border:2px solid #ffffffcf;border-radius:20px;background:#ffffff99;overflow:hidden;box-shadow:0 2px 9px #5b4d7d1b}
+.goal-progress-fill{height:100%;width:0%;border-radius:20px;background:linear-gradient(90deg,#7dcf9f,#b1e875,#f7d46c);transition:width .22s ease}
 .sound{width:49px;height:46px;font-size:21px;border:0;border-radius:16px;background:#fff;box-shadow:0 4px 0 #d6cce4}
 .game-heading{text-align:center;margin:0 0 12px}
 .game-heading h2{margin:0;font-weight:900;color:#6550a5;font-size:clamp(25px,5vw,39px)}
@@ -66,6 +70,16 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .tip{font-size:13px;color:#7d8b9e;text-align:center;line-height:1.5;margin:16px auto 0}
 .feedback{position:absolute;left:50%;top:35%;transform:translate(-50%,-50%);padding:9px 19px;border-radius:99px;background:#fff;font-size:23px;font-weight:900;white-space:nowrap;color:#7d50b4;pointer-events:none;opacity:0;transition:opacity .18s}
 .feedback.show{opacity:1}
+.win-overlay[hidden]{display:none}
+.win-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#543c93ec,#2f7c8be8);padding:22px;z-index:2;line-height:1.4;touch-action:manipulation}
+.win-card{text-align:center;max-width:420px;color:#fff;animation:winAppear .45s ease-out both}
+.win-emoji{font-size:clamp(45px,9vw,76px);line-height:1.3;margin-bottom:10px;filter:drop-shadow(0 6px 8px #2b27505c)}
+.win-card h3{font-size:clamp(30px,7vw,48px);margin:0 0 12px;font-weight:950;letter-spacing:-.03em}
+.win-card p{font-size:clamp(18px,4vw,24px);font-weight:750;margin:0 0 26px;color:#f8eeff}
+.win-restart{min-height:60px;padding:15px 27px;border:3px solid #fff;background:#fff29a;color:#514079;border-radius:20px;font-size:clamp(18px,4vw,23px);font-weight:900;box-shadow:0 7px 0 #7c5988}
+.win-restart:active{transform:translateY(3px);box-shadow:0 4px 0 #7c5988}
+@keyframes winAppear{from{opacity:0;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.win-card{animation:none}.goal-progress-fill{transition:none}}
 @media(max-width:740px){.catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.game-card{min-height:185px;padding:17px}.game-card .illustration{font-size:44px}}
 @media(max-width:480px){.catalog{grid-template-columns:1fr 1fr;gap:11px}.game-card{padding:14px;border-radius:20px;min-height:185px}.game-card strong{font-size:17px}.game-card small{font-size:11px}.game-card .illustration{font-size:39px}.parent-link{font-size:11px;padding:9px 10px}.field{height:clamp(340px,61dvh,520px)}.settings{gap:8px}.mode{padding:10px 13px;font-size:13px;flex:1}.voice-button{font-size:13px;flex:1;min-width:140px}.back{font-size:14px}.counter{font-size:16px;padding:9px 12px}}
 @media(prefers-reduced-motion:reduce){.game-card.featured{transition:none}}
@@ -86,9 +100,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   <p class="note">Без реклами, поспіху й програшів. Грай у своєму темпі 💛</p>
 </section>
 <section id="game" class="screen" hidden>
-  <div class="topline"><button class="back" id="go-home" type="button">← Ігри</button><div class="metrics"><span class="counter" aria-label="Лопнуто кульок">⭐ <span id="score">0</span></span><button class="sound" id="sound" type="button" aria-label="Вимкнути звук" aria-pressed="true">🔊</button></div></div>
+  <div class="topline"><button class="back" id="go-home" type="button">← Ігри</button><div class="metrics"><span class="speed-level" id="speed-level" aria-label="Рівень швидкості">⚡ 1</span><span class="counter" aria-label="Лопнуто кульок">⭐ <span id="score">0</span>/100</span><button class="sound" id="sound" type="button" aria-label="Вимкнути звук" aria-pressed="true">🔊</button></div></div>
   <div class="game-heading"><h2>🎈 Лопни кульку!</h2><p id="instruction" aria-live="polite">Торкнися будь-якої кульки!</p><div class="voice-state" id="voice-state" aria-live="polite">Перевіряємо підтримку українського голосу…</div></div>
-  <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div></div>
+  <div class="goal-progress" role="progressbar" id="goal-progress" aria-label="Кульки до перемоги" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="goal-progress-fill" id="goal-progress-fill"></div></div>
+  <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div>
+    <div class="win-overlay" id="win-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="win-title">
+      <div class="win-card"><div class="win-emoji" aria-hidden="true">🎉🎈🏆</div><h3 id="win-title">Ура! Перемога!</h3><p>Ти молодець! Лопнуто 100 кульок!</p><button type="button" class="win-restart" id="restart-game">🔄 Почати заново</button></div>
+    </div>
+  </div>
   <div class="settings" role="group" aria-label="Режим гри"><button type="button" class="mode selected" data-mode="free" aria-pressed="true">🎈 Просто грати</button><button type="button" class="mode" data-mode="colors" aria-pressed="false">🎨 Вивчаємо кольори</button></div>
   <div class="voice-controls" role="group" aria-label="Керування голосовими підказками">
     <button type="button" class="voice-button" id="recover-audio">🔄 Відновити звук</button>
@@ -96,7 +115,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     <button type="button" class="voice-button" id="repeat-instruction">🔁 Повторити підказку</button>
   </div>
   <label class="auto-control"><input type="checkbox" id="auto-voice" checked> Автоматично озвучувати нове завдання</label>
-  <p class="tip">Немає таймера й помилок — тільки гра та цікаві відкриття.</p>
+  <p class="tip">🎈 У вільній грі — 9 кольорів. Кожні 15 кульок швидкість зростає. На 100-й — свято!</p>
   <p class="voice-note" id="voice-note">Голос українською залежить від встановлених голосів браузера й Android.</p>
 </section>
 </main>
@@ -107,13 +126,22 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
   const instruction=document.getElementById("instruction"),scoreNode=document.getElementById("score"),feedback=document.getElementById("feedback"),soundButton=document.getElementById("sound");
   const voiceButton=document.getElementById("voice-toggle"),repeatButton=document.getElementById("repeat-instruction"),autoCheckbox=document.getElementById("auto-voice"),voiceNote=document.getElementById("voice-note"),voiceState=document.getElementById("voice-state");
+  const speedEl=document.getElementById("speed-level"),goalEl=document.getElementById("goal-progress"),goalFill=document.getElementById("goal-progress-fill"),winOverlay=document.getElementById("win-overlay");
   const palette=[
-    {name:"червону",hex:"#ff6e76",light:"#ffb1b5"},
-    {name:"жовту",hex:"#ffcc4f",light:"#fff2a3"},
-    {name:"синю",hex:"#5c9ded",light:"#bce2ff"},
-    {name:"зелену",hex:"#67c98b",light:"#b9f5cb"}
+    {name:"червону",hex:"#f34555",light:"#ffafb7"},
+    {name:"жовту",hex:"#ffce3e",light:"#ffefac"},
+    {name:"синю",hex:"#427af1",light:"#bcd5ff"},
+    {name:"зелену",hex:"#30bd67",light:"#bbf6cc"},
+    {name:"помаранчеву",hex:"#ff903b",light:"#ffcf9b"},
+    {name:"фіолетову",hex:"#9656dc",light:"#d6b8ff"},
+    {name:"рожеву",hex:"#ff79c4",light:"#ffc0e3"},
+    {name:"бірюзову",hex:"#10bbc8",light:"#a1f1ed"},
+    {name:"коричневу",hex:"#966342",light:"#d7b593"}
   ];
-  let W=400,H=460,balloons=[],particles=[],score=0,mode="free",target=null,soundOn=true,audio=null,active=false;
+  const learningPalette=palette.slice(0,4); // Existing Ukrainian audio has only these four colors.
+  const GOAL=100,STEP=15;
+  let W=400,H=460,balloons=[],particles=[],score=0,freePops=0,colorBag=[],mode="free",target=null,soundOn=true,audio=null,active=false;
+  let gameState="playing",gameVersion=0,celebrationTick=0,celebrationHold=0;
   const CLIPS=["hello","free","red","yellow","blue","green","retry-red","retry-yellow","retry-blue","retry-green","great","wonderful","super","hooray","yes","again","excellent","good-job"];
   const TARGET_CLIP={"червону":"red","жовту":"yellow","синю":"blue","зелену":"green"};
   // One shared voice player prevents 18 decoders from competing on mobile.
@@ -124,6 +152,21 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   let last=0,frameHandle=0,feedbackTimer=0,time=0,voiceAssetsReady=false;
   try{voiceOn=localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
   const rand=(a,b)=>Math.random()*(b-a)+a;
+  function speedLevel(){return 1+Math.floor(freePops/STEP);}
+  function speedMultiplier(){return Math.min(3.4,Math.pow(1.23,speedLevel()-1));}
+  function shuffleColors(){
+    colorBag=(mode==="free"?palette:learningPalette).slice();
+    for(let i=colorBag.length-1;i>0;i--){const j=Math.floor(rand(0,i+1));[colorBag[i],colorBag[j]]=[colorBag[j],colorBag[i]];}
+  }
+  function nextColor(){if(!colorBag.length)shuffleColors();return colorBag.pop();}
+  function refreshProgress(){
+    scoreNode.textContent=String(score);
+    goalEl.setAttribute("aria-valuenow",String(score));
+    goalFill.style.width=Math.min(100,score)+"%";
+    speedEl.textContent="⚡ "+speedLevel();
+    speedEl.setAttribute("aria-label","Рівень швидкості "+speedLevel());
+    speedEl.hidden=mode!=="free";
+  }
   function setVoiceState(message,type="neutral"){voiceState.textContent=message;voiceState.dataset.state=type;}
   function stopVoice(){
     clearTimeout(speechTimer);speechTimer=0;
@@ -202,15 +245,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     balloons.forEach(b=>{b.x=Math.max(b.r,Math.min(W-b.r,b.x*(W/oldW)));b.y=Math.max(b.r,Math.min(H-b.r,b.y*(H/oldH)));});
   }
   function desiredCount(){return Math.min(10,Math.max(5,Math.round(W*H/44000)));}
-  function newBalloon(extraBottom=false){
+  function newBalloon(extraBottom=false,keepColor=null){
     const r=Math.max(30,Math.min(47,W/8.2))*rand(.89,1.13);
     let x=rand(r+5,Math.max(r+6,W-r-5)),y=extraBottom?H+r:rand(r+15,Math.max(r+16,H-r-10));
     for(let i=0;i<35&&!extraBottom;i++){
       x=rand(r+5,W-r-5);y=rand(r+15,H-r-10);
       if(balloons.every(b=>Math.hypot(b.x-x,b.y-y)>b.r+r+10))break;
     }
-    const b={x:x,y:y,r:r,color:palette[Math.floor(rand(0,palette.length))],phase:rand(0,6.28),speed:rand(7,15),id:Math.random()};
-    return b;
+    return {x,y,r,color:keepColor||nextColor(),phase:rand(0,6.28),speed:rand(13,26),id:Math.random()};
   }
   function fill(){
     balloons=[];for(let i=0;i<desiredCount();i++)balloons.push(newBalloon());
@@ -257,8 +299,19 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   }
   function draw(dt){
     ctx.clearRect(0,0,W,H);
-    balloons.forEach(b=>{b.y-=b.speed*dt;if(b.y < -b.r-60){const repl=newBalloon(true);repl.color=b.color;Object.assign(b,repl);}drawBalloon(b);});
-    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=80*dt;p.rot+=p.spin*dt;if(p.life<=0)particles.splice(i,1);else drawParticle(p);}
+    if(gameState==="celebrating")updateCelebration(dt);
+    const multiplier=mode==="free"?speedMultiplier():1;
+    balloons.forEach(b=>{
+      if(gameState==="playing"){
+        b.y-=b.speed*multiplier*dt;
+        if(b.y < -b.r-60)Object.assign(b,newBalloon(true,b.color));
+      }
+      drawBalloon(b);
+    });
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=80*dt;p.rot+=p.spin*dt;
+      if(p.life<=0)particles.splice(i,1);else drawParticle(p);
+    }
   }
   function frame(t){
     const dt=Math.min((t-last)/1000||0,.04);last=t;time=t;
@@ -307,8 +360,59 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     feedback.textContent=text;feedback.classList.add("show");clearTimeout(feedbackTimer);
     feedbackTimer=setTimeout(()=>feedback.classList.remove("show"),850);
   }
+  function startCelebration(){
+    gameState="celebrating";
+    stopVoice();
+    clearTimeout(feedbackTimer);
+    feedback.classList.remove("show");
+    celebrationTick=0;
+    celebrationHold=0;
+    // Fill out the view for the chain reaction even if a new balloon was below the viewport.
+    balloons.forEach(b=>{
+      if(b.y< -b.r*.3||b.y>H+b.r*.3)b.y=rand(b.r+16,Math.max(b.r+17,H-b.r-20));
+    });
+  }
+  function updateCelebration(dt){
+    celebrationTick+=dt;
+    if(balloons.length){
+      if(celebrationTick < .14)return;
+      celebrationTick=0;
+      const i=Math.floor(rand(0,balloons.length));
+      const b=balloons.splice(i,1)[0];
+      const x=b.x+Math.sin(time/1100+b.phase)*5;
+      burst(x,b.y,b.color.hex);
+      burst(x,b.y,"#ffffff");
+      popSound();
+      return;
+    }
+    celebrationHold+=dt;
+    if(celebrationHold>=1.1){
+      gameState="won";
+      winOverlay.hidden=false;
+      setVoiceState("🏆 100 кульок! Ура! Перемога!","ok");
+    }
+  }
+  function resetGame(){
+    gameVersion++;
+    gameState="playing";
+    celebrationTick=0;
+    celebrationHold=0;
+    score=0;freePops=0;colorBag=[];particles=[];
+    balloons=[];target=null;
+    winOverlay.hidden=true;
+    feedback.classList.remove("show");
+    clearTimeout(feedbackTimer);
+    stopVoice();
+    fill();
+    refreshProgress();
+    if(active){
+      restoreAudioContext();
+      if(autoVoice)queueInstruction(350);
+    }
+  }
   function touch(e){
-    e.preventDefault();if(!active)return;
+    e.preventDefault();
+    if(!active||gameState!=="playing")return;
     const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
     for(let i=balloons.length-1;i>=0;i--){
       const b=balloons[i],bx=b.x+Math.sin(time/1100+b.phase)*5;
@@ -319,15 +423,26 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
         return;
       }
       popSound();burst(bx,b.y,b.color.hex);balloons.splice(i,1);
-      score++;scoreNode.textContent=String(score);cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
+      score++;
+      if(mode==="free")freePops++;
+      refreshProgress();
+      if(score>=GOAL){startCelebration();return;}
+      if(mode==="free"&&freePops%STEP===0)cheer("⚡ Швидше! Рівень "+speedLevel());
+      else cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
       if(Date.now()-praiseVoiceAt>6500){
         praiseVoiceAt=Date.now();
         playClip(mode==="colors"?"yes":["great","wonderful","super","hooray","excellent","good-job"][score%6]);
       }
-      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1950);}},170);
+      const version=gameVersion;
+      setTimeout(()=>{
+        if(active&&gameState==="playing"&&version===gameVersion){
+          balloons.push(newBalloon(true));
+          if(mode==="colors")chooseTarget(true,1950);
+        }
+      },170);
       return;
     }
-    for(let i=0;i<4;i++)particles.push({x:x,y:y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
+    for(let i=0;i<4;i++)particles.push({x,y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
   }
   function renderRoute(){
     const wasActive=active;
@@ -341,10 +456,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";renderRoute();});
   document.getElementById("go-home").addEventListener("click",()=>{location.hash="";renderRoute();});
   document.getElementById("recover-audio").addEventListener("click",recoverSound);
+  document.getElementById("restart-game").addEventListener("click",resetGame);
   document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
     stopVoice();mode=btn.dataset.mode;
+    colorBag=[];
+    balloons.forEach(b=>{b.color=nextColor();});
     document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
-    chooseTarget(true,0);
+    refreshProgress();
+    if(gameState==="playing")chooseTarget(true,0);
   }));
   soundButton.addEventListener("click",()=>{
     soundOn=!soundOn;
@@ -370,7 +489,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   window.addEventListener("resize",()=>{if(active)resize();});
   window.addEventListener("hashchange",renderRoute);
   document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopVoice();});
-  syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);checkVoiceAssets();
+  syncAudioControls();renderRoute();refreshProgress();frameHandle=requestAnimationFrame(frame);checkVoiceAssets();
   if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
 </script>
