@@ -24,10 +24,20 @@ PHRASES = {
     "yellow": "Знайди жовту кульку.",
     "blue": "Знайди синю кульку.",
     "green": "Знайди зелену кульку.",
+    "orange": "Знайди помаранчеву кульку.",
+    "purple": "Знайди фіолетову кульку.",
+    "pink": "Знайди рожеву кульку.",
+    "turquoise": "Знайди бірюзову кульку.",
+    "brown": "Знайди коричневу кульку.",
     "retry-red": "Шукай червону кульку.",
     "retry-yellow": "Шукай жовту кульку.",
     "retry-blue": "Шукай синю кульку.",
     "retry-green": "Шукай зелену кульку.",
+    "retry-orange": "Шукай помаранчеву кульку.",
+    "retry-purple": "Шукай фіолетову кульку.",
+    "retry-pink": "Шукай рожеву кульку.",
+    "retry-turquoise": "Шукай бірюзову кульку.",
+    "retry-brown": "Шукай коричневу кульку.",
     "great": "Молодець!",
     "wonderful": "Чудово!",
     "super": "Супер!",
@@ -58,6 +68,30 @@ def get_model_file(name: str, dest: Path) -> None:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    pending = {name: phrase for name, phrase in PHRASES.items()
+               if not (OUT / (name + ".ogg")).exists()}
+    print(f"Missing clips: {len(pending)}; expected clips: {len(PHRASES)}", flush=True)
+    # Preserve existing 18 WAV-derived recordings. Only generate missing colors.
+    if pending:
+        build_missing(pending)
+    for name in PHRASES:
+        if not (OUT / (name + ".ogg")).exists():
+            raise RuntimeError("Missing clip after generation: " + name)
+    (OUT / "phrases.json").write_text(
+        json.dumps({
+            "language": "uk-UA",
+            "voice": "Tetiana",
+            "source": "https://huggingface.co/RomanStasyshyn/uk_UA-tetiana-high",
+            "modelLicense": "Apache-2.0",
+            "files": {key: {"text": val, "src": f"./audio/{key}.ogg"}
+                      for key, val in PHRASES.items()},
+        }, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"Validated {len(PHRASES)} audio clips", flush=True)
+
+
+def build_missing(pending: dict[str, str]) -> None:
     with tempfile.TemporaryDirectory(prefix="kids-uk-tts-") as td:
         work = Path(td)
         model = work / "tetiana.onnx"
@@ -71,14 +105,14 @@ def main() -> None:
 
         # Piper CLI v1.8 accepts one output_file at a time (no --json-input).
         # Short phrases keep the memory and synthesis cost low.
-        for name, phrase in PHRASES.items():
+        for name, phrase in pending.items():
             wav = raw / (name + ".wav")
             run(["piper", "--model", str(model), "--output-file", str(wav)],
                 input_text=phrase + "\n")
             if not wav.exists() or wav.stat().st_size < 500:
                 raise RuntimeError("Missing or empty TTS output: " + name)
 
-        for name in PHRASES:
+        for name in pending:
             wav = raw / (name + ".wav")
             if not wav.exists() or wav.stat().st_size < 500:
                 raise RuntimeError("Missing or empty TTS output: " + name)
@@ -98,18 +132,6 @@ def main() -> None:
                 raise RuntimeError(f"Unexpected duration {duration:.2f}s: {name}")
             print(f"{name:14} {duration:4.2f}s {target.stat().st_size:8} bytes")
 
-    (OUT / "phrases.json").write_text(
-        json.dumps({
-            "language": "uk-UA",
-            "voice": "Tetiana",
-            "source": "https://huggingface.co/RomanStasyshyn/uk_UA-tetiana-high",
-            "modelLicense": "Apache-2.0",
-            "files": {key: {"text": val, "src": f"./audio/{key}.ogg"}
-                      for key, val in PHRASES.items()},
-        }, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    print(f"Generated {len(PHRASES)} audio clips", flush=True)
 
 
 if __name__ == "__main__":

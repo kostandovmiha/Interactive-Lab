@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   generate:
-    name: Create offline OGG voice pack (Tetiana)
+    name: Build missing offline OGG voices (Tetiana)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -39,6 +39,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to audio clips."
           else
-            git commit -m "build(kids): publish Apache-2.0 Tetiana Ukrainian voice audio"
-            git push origin HEAD:main
+            git commit -m "build(kids): add missing nine-color Ukrainian voice cues"
+            git push origin HEAD:"$GITHUB_REF_NAME"
           fi
