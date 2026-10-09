@@ -176,7 +176,44 @@ const applyFormat=(editor,command,value)=>{
  rememberAfterCommand(editor);
 };
 document.addEventListener("selectionchange",rememberRichSelection);
-let course=blank(),active="",mode="notes",access="",fileId="",connected=false,dirty=false,saving=false,revision=0,saveTimer=0,picNote="",imageURLs=new Map();
+let course=blank(),active="",mode="notes",access="",expiresAt=0,fileId="",connected=false,loaded=false,dirty=false,saving=false,revision=0,saveTimer=0,tokenTimer=0,authPending=null,authEpoch=0,picNote="",imageURLs=new Map();
+const tokenStoreKey="ll-temporary-drive-token-v1";
+const tokenReady=()=>Boolean(access&&expiresAt>Date.now()+60*1000);
+const clearToken=()=>{
+ access="";expiresAt=0;clearTimeout(tokenTimer);
+ try{sessionStorage.removeItem(tokenStoreKey)}catch(e){}
+};
+const rememberToken=r=>{
+ if(!r?.access_token)throw Error("Google не повернув токен доступу.");
+ access=r.access_token;
+ const seconds=Math.max(60,Math.min(3600,Number(r.expires_in)||3600));
+ expiresAt=Date.now()+seconds*1000;
+ try{sessionStorage.setItem(tokenStoreKey,JSON.stringify({client:config.client,token:access,expiresAt}));}catch(e){}
+ planTokenRenewal();
+};
+const restoreToken=()=>{
+ try{
+  const cache=JSON.parse(sessionStorage.getItem(tokenStoreKey)||"null");
+  if(cache?.client!==config.client||typeof cache?.token!=="string"||!Number.isFinite(cache?.expiresAt)||cache.expiresAt<=Date.now()+60*1000)return false;
+  access=cache.token;expiresAt=cache.expiresAt;planTokenRenewal();return true;
+ }catch(e){return false;}
+};
+const authMessage=e=>{
+ const msg=String(e?.message||e||"");
+ if(/popup_failed_to_open|popup_closed|access_denied|interaction_required|consent_required|login_required|timed out|timeout/i.test(msg))return "Потрібен вхід · натисни «Підключити»";
+ return "Google Drive недоступний · натисни «Підключити»";
+};
+const planTokenRenewal=()=>{
+ clearTimeout(tokenTimer);
+ if(!expiresAt)return;
+ // Best effort only. Browser popup restrictions may require an explicit click.
+ const delay=Math.max(1000,expiresAt-Date.now()-2*60*1000);
+ tokenTimer=setTimeout(async()=>{
+  if(!connected||!config.folderId||!navigator.onLine)return;
+  try{await auth({silent:true});if(dirty)await flush();}
+  catch(e){if(expiresAt<=Date.now()+60*1000)sync(dirty?"Не збережено · потрібен вхід":"Потрібен вхід","err");}
+ },delay);
+};
 const sync=(text,kind="")=>{$("sync").textContent=text;$("sync").className="sync "+kind;};
 const toast=text=>{const x=$("toast");x.textContent=text;x.className="toast show";setTimeout(()=>x.className="toast",3500);};
 const settingsSave=()=>{
@@ -263,9 +300,26 @@ const chosen=()=>lessons().find(x=>x.l.id===active);
 const valid=c=>c&&c.schema===1&&Array.isArray(c.weeks)&&c.weeks.length<101&&c.weeks.every(w=>Array.isArray(w.lessons)&&w.lessons.length<501&&w.lessons.every(l=>Array.isArray(l.notes)&&l.notes.length<1001));
 const changed=()=>{dirty=true;revision++;sync(connected?"Очікує збереження…":"Не збережено · підключи Drive");if(connected){clearTimeout(saveTimer);saveTimer=setTimeout(flush,1100);}};
 async function request(url,opts={}){
- if(!access)throw Error("Сеанс Google неактивний.");
- const r=await fetch(url.startsWith("http")?url:"https://www.googleapis.com/drive/v3/"+url,{...opts,headers:{Authorization:"Bearer "+access,...opts.headers}});
- if(!r.ok){let msg=r.statusText;try{msg=(await r.json()).error.message;}catch(e){}if(r.status===401){connected=false;sync("Сеанс закінчився","err");}throw Error("Drive "+r.status+": "+msg);}
+ if(!tokenReady()){
+  try{await auth({silent:true});}
+  catch(e){sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
+ }
+ const {alreadyRetried,...fetchOptions}=opts;
+ const apiURL=url.startsWith("http")?url:"https://www.googleapis.com/drive/v3/"+url;
+ const r=await fetch(apiURL,{...fetchOptions,headers:{...fetchOptions.headers,Authorization:"Bearer "+access}});
+ if(r.status===401&&!alreadyRetried){
+  // Reject a revoked/expired token, then retry this request only once.
+  clearToken();
+  try{await auth({silent:true});}
+  catch(e){sync(dirty?"Не збережено · потрібен вхід":authMessage(e),"err");throw e;}
+  return request(url,{...fetchOptions,alreadyRetried:true});
+ }
+ if(!r.ok){
+  let msg=r.statusText;
+  try{msg=(await r.json()).error.message||msg;}catch(e){}
+  if(r.status===401){clearToken();sync(dirty?"Не збережено · потрібен вхід":"Потрібен вхід","err");}
+  throw Error("Drive "+r.status+": "+msg);
+ }
  return r;
 }
 async function multipart(meta,blob,mime){
@@ -283,13 +337,75 @@ async function flush(){
  }catch(e){sync("Не збережено · помилка","err");toast(e.message);console.error(e);}
  finally{saving=false;if(dirty&&connected)saveTimer=setTimeout(flush,5000);}
 }
-async function auth(){
- if(!config.client)throw Error("Введи OAuth Client ID у налаштуваннях.");
- if(!window.google?.accounts?.oauth2)throw Error("Google Identity Services не завантажився.");
- await new Promise((resolve,reject)=>{
- const client=google.accounts.oauth2.initTokenClient({client_id:config.client,scope:"https://www.googleapis.com/auth/drive.file",callback:r=>{if(r.error)reject(Error(r.error));else{access=r.access_token;resolve();}}});
- client.requestAccessToken({prompt:access?"":"consent"});
+function waitGoogle(){
+ if(window.google?.accounts?.oauth2)return Promise.resolve();
+ return new Promise((resolve,reject)=>{
+  let tries=0;
+  const tick=()=>{
+   if(window.google?.accounts?.oauth2){resolve();return;}
+   if(++tries>=40){reject(Error("Сервіс входу Google не завантажився."));return;}
+   setTimeout(tick,150);
+  };
+  tick();
  });
+}
+function auth({silent=false}={}){
+ if(!config.client)return Promise.reject(Error("Введи OAuth Client ID у налаштуваннях."));
+ if(tokenReady())return Promise.resolve();
+ if(authPending)return authPending;
+ const epoch=authEpoch;
+ let settle;
+ authPending=new Promise((resolve,reject)=>{settle={resolve,reject};});
+ const pending=authPending;
+ const start=()=>{
+  if(epoch!==authEpoch){settle.reject(Error("Налаштування підключення змінені."));return;}
+  try{
+   let settled=false;
+   const timeout=setTimeout(()=>finish(Error("Час очікування Google минув.")),silent?11000:120000);
+   function finish(err,token){
+    if(settled)return;
+    settled=true;clearTimeout(timeout);
+    if(epoch!==authEpoch){settle.reject(Error("Підключення було змінене."));return;}
+    if(err)settle.reject(err);
+    else try{rememberToken(token);settle.resolve();}catch(e){settle.reject(e);}
+   }
+   const client=google.accounts.oauth2.initTokenClient({
+    client_id:config.client,scope:"https://www.googleapis.com/auth/drive.file",
+    callback:r=>r?.error?finish(Error(r.error)):finish(null,r),
+    error_callback:e=>finish(Error(e?.type||"Google OAuth: вікно авторизації недоступне"))
+   });
+   // 'none' attempts a no-consent flow. GIS may still use a popup, and browsers may block it.
+   client.requestAccessToken({prompt:silent?"none":""});
+  }catch(e){settle.reject(e);}
+ };
+ if(window.google?.accounts?.oauth2)start(); // preserve gesture for manual sign-in
+ else waitGoogle().then(start,e=>settle.reject(e));
+ pending.finally(()=>{if(authPending===pending)authPending=null;}).catch(()=>{});
+ return pending;
+}
+async function reconnect({silent=false}={}){
+ if(!config.folderId){
+  sync("Вибери папку напряму");
+  if(!silent)await pick();
+  return;
+ }
+ if(!silent)sync("Підключення до Google…");
+ await auth({silent});
+ if(loaded){
+  connected=true;
+  if(dirty)await flush();
+  else sync("Збережено на Google Drive","ok");
+  return;
+ }
+ await load();
+}
+async function autoConnect(){
+ if(!config.folderId){sync("Вибери папку напряму");return;}
+ if(!config.client){sync("Налаштуй Google Cloud");return;}
+ sync("Відновлюємо Google Drive…");
+ restoreToken();
+ try{await reconnect({silent:true});}
+ catch(e){sync(authMessage(e),"err");}
 }
 async function load(){
  if(!config.folderId){sync("Вибери папку напряму");return pick();}
@@ -304,7 +420,7 @@ async function load(){
    if(dirty&&!confirm("Є незбережені локальні зміни. Замінити їх даними з Drive?"))return;
    course=incoming;dirty=false;
   }else if(!dirty){course=blank();changed();}
-  connected=true;
+  connected=true;loaded=true;
   if(!thematic&&!course.watch&&course.weeks.length){course.watch=defaultWatch();changed();}
   const preferred=new URLSearchParams(location.search).get("lesson");
   active=lessons().find(x=>x.l.id===preferred)?.l.id||lessons()[0]?.l.id||"";
@@ -323,7 +439,7 @@ async function pick(){
     const folderId=r.docs[0].id;
     if(project.folderName&&r.docs[0].name!==project.folderName&&!confirm("Обрана папка відрізняється від «"+project.name+"». Продовжити?"))return;
     if(dirty&&!confirm("Є незбережені записи. Експортуй резервний JSON перед зміною папки. Продовжити?"))return;
-    config.folderId=folderId;config.folderName=r.docs[0].name;settingsSave();fileId="";await load();$("settings").close();
+    config.folderId=folderId;config.folderName=r.docs[0].name;settingsSave();fileId="";loaded=false;connected=false;await load();$("settings").close();
    }
   }).build().setVisible(true);
  }catch(e){toast(e.message);console.error(e);}
@@ -462,13 +578,26 @@ document.addEventListener("paste",e=>{
  }
 });
 $("picInput").onchange=e=>{if(e.target.files[0])upload(e.target.files[0]);e.target.value="";};
-$("connect").onclick=async()=>{try{await auth();await load();}catch(e){toast(e.message);sync("Помилка входу","err");}};
+$("connect").onclick=async()=>{
+ try{await reconnect({silent:false});}
+ catch(e){sync(authMessage(e),"err");toast("Не вдалося підключитися: "+e.message);}
+};
 $("settingsBtn").onclick=()=>{$("client").value=config.client||"";$("apiKey").value=config.apiKey||"";$("project").value=config.project||"";settingsSave();$("settings").showModal();};
 $("close").onclick=()=>$("settings").close();
-const readConfig=()=>{config.client=$("client").value.trim();config.apiKey=$("apiKey").value.trim();config.project=$("project").value.trim();settingsSave();};
+const readConfig=()=>{
+ const before=config.client;
+ config.client=$("client").value.trim();
+ config.apiKey=$("apiKey").value.trim();
+ config.project=$("project").value.trim();
+ if(before!==config.client){
+  authEpoch++;clearToken();connected=false;loaded=false;fileId="";
+  sync("Параметри OAuth змінені · підключи знову");
+ }
+ settingsSave();
+};
 $("saveConfig").onclick=()=>{readConfig();toast("Налаштування збережено.");};
 $("pick").onclick=()=>{readConfig();pick();};
-$("forget").onclick=()=>{if(confirm("Від'єднати папку? Файли на Drive залишаться.")){delete config.folderId;delete config.folderName;settingsSave();connected=false;fileId="";sync("Папка не підключена");}};
+$("forget").onclick=()=>{if(confirm("Від'єднати папку? Файли на Drive залишаться.")){delete config.folderId;delete config.folderName;authEpoch++;clearToken();settingsSave();connected=false;loaded=false;fileId="";sync("Папка не підключена");}};
 $("backup").onclick=()=>download(projectId+"-backup.json",JSON.stringify(course,null,2),"application/json");
 $("markdown").onclick=()=>{
  const lines=["# "+course.title,""];
@@ -477,8 +606,19 @@ $("markdown").onclick=()=>{
 };
 $("import").onclick=()=>$("importInput").click();
 $("importInput").onchange=async e=>{try{const f=e.target.files[0];if(!f)return;const data=JSON.parse(await f.text());if(!valid(data))throw Error("Несумісний JSON.");if(!confirm("Замінити весь конспект імпортованими записами?"))return;course=data;active="";changed();render();}catch(err){toast(err.message);}finally{e.target.value="";}};
-window.addEventListener("online",()=>{if(dirty&&connected)flush();});
+window.addEventListener("online",()=>{
+ if(connected&&dirty)flush();
+ else if(config.folderId&&!tokenReady())autoConnect();
+});
+document.addEventListener("visibilitychange",()=>{
+ if(document.visibilityState==="visible"&&loaded&&connected&&!tokenReady()){
+  auth({silent:true}).then(()=>{if(dirty)flush();else sync("Збережено на Google Drive","ok");})
+  .catch(()=>sync(dirty?"Не збережено · потрібен вхід":"Потрібен вхід","err"));
+ }
+});
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
 render();
+// Failures do not overwrite local notes; manual entry remains available.
+autoConnect();
 })();
 </script></body></html>
