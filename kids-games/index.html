@@ -121,15 +121,29 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     currentUtterance=null;
   }
   function instructionText(){return mode==="colors"&&target?"Знайди "+target.name+" кульку.":"Торкнися будь-якої кульки.";}
+  function getUkrainianVoice(){
+    if(!speechSupported)return null;
+    try{return window.speechSynthesis.getVoices().find(v=>/^uk(?:-|_|$)/i.test(v.lang||""))||null;}catch(e){return null;}
+  }
   function speak(text){
     if(!speechSupported||!active||!voiceOn||!soundOn||document.hidden)return false;
     try{
-      const synth=window.speechSynthesis,utterance=new SpeechSynthesisUtterance(text);
-      utterance.lang="uk-UA";utterance.rate=.89;utterance.pitch=1.06;utterance.volume=.88;
-      const voices=synth.getVoices(),ukrainian=voices.find(v=>v.lang&&v.lang.toLowerCase().startsWith("uk"));
-      if(ukrainian)utterance.voice=ukrainian;
+      const synth=window.speechSynthesis,ukrainian=getUkrainianVoice();
+      const voices=synth.getVoices();
+      if(!ukrainian){
+        voiceNote.textContent=voices.length
+          ?"На цьому пристрої не знайдено українського голосу. Додай український голос у налаштуваннях синтезу мовлення Windows або Android."
+          :"Список голосів ще завантажується. Спробуй кнопку «Повторити підказку» за мить.";
+        return false;
+      }
+      const utterance=new SpeechSynthesisUtterance(text);
+      utterance.lang="uk-UA";utterance.voice=ukrainian;utterance.rate=.89;utterance.pitch=1.06;utterance.volume=.88;
       utterance.onend=()=>{if(currentUtterance===utterance)currentUtterance=null;};
-      utterance.onerror=()=>{if(currentUtterance===utterance)currentUtterance=null;};
+      utterance.onerror=(event)=>{
+        if(currentUtterance===utterance)currentUtterance=null;
+        if(event.error==="not-allowed"||event.error==="audio-busy")voiceNote.textContent="Браузер не дозволив автоматичне озвучення. Натисни «Повторити підказку» та перевір звук.";
+        else voiceNote.textContent="Не вдалося відтворити голос. Перевір український голос у налаштуваннях пристрою.";
+      };
       synth.cancel();currentUtterance=utterance;synth.speak(utterance);
       return true;
     }catch(e){return false;}
@@ -149,7 +163,13 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     voiceButton.disabled=!speechSupported;
     repeatButton.disabled=!speechSupported||!voiceOn||!soundOn;
     autoCheckbox.checked=autoVoice;autoCheckbox.disabled=!speechSupported||!voiceOn;
-    voiceNote.textContent=speechSupported?"Український голос залежить від встановлених голосів Android або браузера. Кнопка 🔊 вимикає всі звуки.":"Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
+    if(!speechSupported)voiceNote.textContent="Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
+    else{
+      const voices=window.speechSynthesis.getVoices(),ukVoice=getUkrainianVoice();
+      if(ukVoice)voiceNote.textContent="Український голос: "+ukVoice.name+". Натисни «Повторити підказку», щоб перевірити звучання.";
+      else if(voices.length)voiceNote.textContent="Українського голосу не знайдено. Для озвучення встанови український голос у Windows або Android.";
+      else voiceNote.textContent="Завантажуємо список голосів браузера. Натисни «Повторити підказку» трохи згодом.";
+    }
   }
   function resize(){
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
@@ -305,6 +325,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   window.addEventListener("resize",()=>{if(active)resize();});
   window.addEventListener("hashchange",renderRoute);
   document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopSpeech();});
+  if(speechSupported)window.speechSynthesis.addEventListener("voiceschanged",syncAudioControls);
   syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);
   if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
