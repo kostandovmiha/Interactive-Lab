@@ -65,7 +65,7 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
   <div class="hero"><span class="kicker">KIDS PLAYGROUND · VOICE STUDY</span><h1>Voice <span>Lab.</span> 🎙️</h1><p class="lead">Обери найприємніший український голос для дитячих ігор. Порівнюємо однакову фразу, слухаємо інтонації та зберігаємо фаворита.</p></div>
   <section class="panel" aria-label="Фраза для порівняння">
     <div class="sample-label">Тестова фраза для всіх голосів</div>
-    <p class="sample" id="phrase">Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!</p>
+    <p class="sample" id="phrase">Привіт! Давай гратися з кульками! Знайди червону кульку. Ура! Молодець!</p>
     <div class="actions"><button id="copy" class="btn primary" type="button">Копіювати фразу</button><span id="copy-status" class="copy-status" aria-live="polite"></span></div>
   </section>
   <div class="headline"><h2>Порівняння голосів</h2><span class="note" id="count">0 із 5 зразків завантажено</span></div>
@@ -84,7 +84,7 @@ details summary{font-weight:850;cursor:pointer;color:#e2d6ff;font-size:17px}
 <script>
 (() => {
   "use strict";
-  const PHRASE="Привіт! Давай лопати кульки! Знайди червону кульку. Ура, молодець!";
+  const PHRASE="Привіт! Давай гратися з кульками! Знайди червону кульку. Ура! Молодець!";
   const N=5,slots=Array.from({length:N},(_,i)=>({name:"Голос "+(i+1),blob:null,url:null,remote:null,rating:0}));
   let playing=null,winner=-1,db=null;
   const el=document.getElementById("cards");
