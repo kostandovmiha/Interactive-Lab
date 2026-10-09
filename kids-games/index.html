@@ -112,83 +112,78 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     {name:"зелену",hex:"#67c98b",light:"#b9f5cb"}
   ];
   let W=400,H=460,balloons=[],particles=[],score=0,mode="free",target=null,soundOn=true,audio=null,active=false;
-  const speechSupported=("speechSynthesis" in window)&&("SpeechSynthesisUtterance" in window);
-  let voiceOn=speechSupported,autoVoice=true,currentUtterance=null,speechTimer=0,wrongVoiceAt=0,praiseVoiceAt=0;
-  try{voiceOn=speechSupported&&localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
-  let last=0,frameHandle=0,feedbackTimer=0,time=0;
+  const CLIPS=["hello","free","red","yellow","blue","green","retry-red","retry-yellow","retry-blue","retry-green","great","wonderful","super","hooray","yes","again","excellent","good-job"];
+  const TARGET_CLIP={"червону":"red","жовту":"yellow","синю":"blue","зелену":"green"};
+  const clipCache=new Map(CLIPS.map(key=>{
+    const audio=new Audio("./audio/"+key+".ogg");
+    audio.preload="none";
+    return [key,audio];
+  }));
+  let voiceOn=true,autoVoice=true,currentAudio=null,speechTimer=0,wrongVoiceAt=0,praiseVoiceAt=0;
+  let last=0,frameHandle=0,feedbackTimer=0,time=0,voiceAssetsReady=false;
+  try{voiceOn=localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
   const rand=(a,b)=>Math.random()*(b-a)+a;
   function setVoiceState(message,type="neutral"){voiceState.textContent=message;voiceState.dataset.state=type;}
-  function stopSpeech(){
+  function stopVoice(){
     clearTimeout(speechTimer);speechTimer=0;
-    if(!speechSupported)return;
-    currentUtterance=null;
-    try{window.speechSynthesis.cancel();}catch(e){}
+    if(currentAudio){try{currentAudio.pause();currentAudio.currentTime=0;}catch(e){}currentAudio=null;}
   }
-  function instructionText(){return mode==="colors"&&target?"Знайди "+target.name+" кульку.":"Торкнися будь-якої кульки.";}
-  function getUkrainianVoice(){
-    if(!speechSupported)return null;
-    try{return window.speechSynthesis.getVoices().find(v=>/^uk(?:-|_|$)/i.test(v.lang||""))||null;}catch(e){return null;}
-  }
-  function speak(text){
-    if(!speechSupported||!active||!voiceOn||!soundOn||document.hidden)return false;
+  function instructionKey(){return mode==="colors"&&target?TARGET_CLIP[target.name]:"free";}
+  function playClip(key){
+    if(!active||!voiceOn||!soundOn||document.hidden)return false;
+    const clip=clipCache.get(key);
+    if(!clip)return false;
+    stopVoice();
+    currentAudio=clip;
+    clip.currentTime=0;
+    clip.onended=()=>{if(currentAudio===clip){currentAudio=null;setVoiceState("✅ Українське озвучення працює.","ok");}};
+    clip.onerror=()=>{if(currentAudio===clip){currentAudio=null;setVoiceState("⚠️ Не вдалося завантажити аудіофайл "+key+".ogg.","error");}};
     try{
-      const synth=window.speechSynthesis,ukrainian=getUkrainianVoice();
-      const voices=synth.getVoices();
-      if(!ukrainian){
-        if(voices.length){
-          setVoiceState("🔇 Chrome не має доступного українського голосу — тому чути лише лускання кульок.","error");
-          voiceNote.textContent="Chrome бачить "+voices.length+" інших голосів, але жодного uk-UA. Спробуй Edge або озвучення з готових аудіофайлів.";
-        }else{
-          setVoiceState("⌛ Chrome ще завантажує список голосів. Натисни «Повторити підказку» за мить.");
-          voiceNote.textContent="У браузері наразі доступно 0 голосів.";
-        }
-        return false;
+      const promise=clip.play();
+      if(promise&&typeof promise.then==="function"){
+        promise.then(()=>{voiceAssetsReady=true;if(currentAudio===clip)setVoiceState("🗣️ Відтворюємо записаний український голос.","ok");})
+        .catch(err=>{
+          if(currentAudio!==clip)return;
+          currentAudio=null;
+          setVoiceState("⚠️ Не вдалося відтворити голос: "+(err&&err.name||"помилка")+". Натисни «Повторити підказку».","error");
+        });
       }
-      const utterance=new SpeechSynthesisUtterance(text);
-      utterance.lang="uk-UA";utterance.voice=ukrainian;utterance.rate=.89;utterance.pitch=1.06;utterance.volume=.88;
-      utterance.onstart=()=>{if(currentUtterance===utterance)setVoiceState("🗣️ Chrome розпочав озвучення українською.","ok");};
-      utterance.onend=()=>{if(currentUtterance===utterance){currentUtterance=null;setVoiceState("✅ Chrome повідомив про завершення озвучення.","ok");}};
-      utterance.onerror=(event)=>{
-        if(currentUtterance!==utterance)return;
-        currentUtterance=null;
-        setVoiceState("⚠️ Помилка озвучення Chrome: "+(event.error||"невідома")+". Звуки кульок працюють окремо.","error");
-        voiceNote.textContent="Озвучення тексту не вдалося. Спробуй повторити підказку натисканням кнопки.";
-      };
-      stopSpeech();currentUtterance=utterance;setVoiceState("⏳ Chrome готує голосове повідомлення…");synth.speak(utterance);
       return true;
-    }catch(e){setVoiceState("⚠️ Chrome не зміг запустити озвучення: "+(e&&e.message||"невідома помилка"),"error");return false;}
+    }catch(e){
+      currentAudio=null;setVoiceState("⚠️ Помилка відтворення: "+(e&&e.message||"невідомо"),"error");return false;
+    }
   }
   function queueInstruction(delay=450){
     clearTimeout(speechTimer);speechTimer=0;
-    if(!autoVoice||!voiceOn||!soundOn||!speechSupported||!active)return;
-    if(delay===0){speak(instructionText());return;}
-    speechTimer=setTimeout(()=>{speechTimer=0;speak(instructionText());},delay);
+    if(!autoVoice||!voiceOn||!soundOn||!active)return;
+    if(delay===0){playClip(instructionKey());return;}
+    speechTimer=setTimeout(()=>{speechTimer=0;playClip(instructionKey());},delay);
   }
   function syncAudioControls(){
     soundButton.textContent=soundOn?"🔊":"🔇";
     soundButton.setAttribute("aria-label",soundOn?"Вимкнути всі звуки":"Увімкнути всі звуки");
     soundButton.setAttribute("aria-pressed",String(soundOn));
-    voiceButton.textContent=!speechSupported?"🗣️ Голос недоступний":voiceOn?"🗣️ Голос увімкнено":"🤫 Без голосу";
-    voiceButton.setAttribute("aria-pressed",String(voiceOn&&speechSupported));
-    voiceButton.disabled=!speechSupported;
-    repeatButton.disabled=!speechSupported||!voiceOn||!soundOn;
-    autoCheckbox.checked=autoVoice;autoCheckbox.disabled=!speechSupported||!voiceOn;
-    if(!speechSupported){
-      voiceNote.textContent="Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
-      setVoiceState("🔇 Цей браузер не підтримує озвучення фраз.","error");
-    }else{
-      const voices=window.speechSynthesis.getVoices(),ukVoice=getUkrainianVoice();
-      if(ukVoice){
-        voiceNote.textContent="Український голос: "+ukVoice.name+". Натисни «Повторити підказку», щоб перевірити звучання.";
-        if(!voiceOn||!soundOn)setVoiceState("🤫 Голосові підказки вимкнено.");
-        else if(!currentUtterance)setVoiceState("🗣️ Український голос доступний. Для перевірки натисни «Повторити підказку».","ok");
-      }else if(voices.length){
-        voiceNote.textContent="Знайдено голосів: "+voices.length+". Українських серед них: 0. Звуки кульок не залежать від озвучення тексту.";
-        setVoiceState("🔇 У Chrome немає українського голосу — тому чути лише лускання кульок.","error");
-      }else{
-        voiceNote.textContent="Chrome ще не повідомив про доступні голоси. Натисни «Повторити підказку» пізніше.";
-        setVoiceState("⌛ Список голосів Chrome поки порожній.");
-      }
+    voiceButton.textContent=voiceOn?"🗣️ Голос увімкнено":"🤫 Без голосу";
+    voiceButton.setAttribute("aria-pressed",String(voiceOn));
+    repeatButton.disabled=!voiceOn||!soundOn;
+    autoCheckbox.checked=autoVoice;
+    autoCheckbox.disabled=!voiceOn;
+    voiceNote.textContent="Попередньо записаний український жіночий голос. Працює без системного TTS у Chrome та на Android.";
+    if(!voiceOn||!soundOn)setVoiceState("🤫 Озвучення вимкнено.");
+    else if(voiceAssetsReady&&!currentAudio)setVoiceState("✅ Голосові файли доступні.","ok");
+  }
+  async function checkVoiceAssets(){
+    try{
+      const r=await fetch("./audio/phrases.json",{cache:"no-store"});
+      if(!r.ok)throw Error("HTTP "+r.status);
+      const data=await r.json();
+      if(!data.files||Object.keys(data.files).length!==CLIPS.length)throw Error("Неповний набір аудіо");
+      voiceAssetsReady=true;setVoiceState("✅ Українські голосові файли завантажені.","ok");
+      // Load the short clips after the first interaction, so they can also be cached for offline play.
+      for(const c of clipCache.values()){c.preload="auto";c.load();}
+    }catch(e){
+      setVoiceState("⌛ Аудіофайли ще недоступні: "+(e&&e.message||"мережа")+".","error");
+      voiceNote.textContent="Звуки кульок працюють окремо. Аудіопак Tetiana ще не опубліковано або він не завантажився.";
     }
   }
   function resize(){
@@ -291,14 +286,14 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
       if(Math.pow((x-bx)/(b.r*.94),2)+Math.pow((y-b.y)/(b.r*1.13),2)>1)continue;
       if(mode==="colors"&&target&&target.name!==b.color.name){
         cheer("Шукай "+target.name+" 💛");
-        if(Date.now()-wrongVoiceAt>4500){wrongVoiceAt=Date.now();speak(instructionText());}
+        if(Date.now()-wrongVoiceAt>4500){wrongVoiceAt=Date.now();playClip("retry-"+instructionKey());}
         return;
       }
       popSound();burst(bx,b.y,b.color.hex);balloons.splice(i,1);
       score++;scoreNode.textContent=String(score);cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
       if(Date.now()-praiseVoiceAt>6500){
         praiseVoiceAt=Date.now();
-        speak(mode==="colors"?"Так! Молодець!":"Чудово!");
+        playClip(mode==="colors"?"yes":["great","wonderful","super","hooray","excellent","good-job"][score%6]);
       }
       setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget(true,1100);}},170);
       return;
@@ -310,43 +305,42 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     active=location.hash==="#balloons";home.hidden=active;game.hidden=!active;
     if(active){
       resize();if(!balloons.length)fill();
-      if(!wasActive&&mode==="free"&&autoVoice)speak("Привіт! Давай лопати кульки!");
+      if(!wasActive&&mode==="free"&&autoVoice)playClip("hello");
       else if(!wasActive)queueInstruction(0);
-    }else{stopSpeech();}
+    }else{stopVoice();}
   }
   document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";renderRoute();});
   document.getElementById("go-home").addEventListener("click",()=>{location.hash="";renderRoute();});
   document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
-    stopSpeech();mode=btn.dataset.mode;
+    stopVoice();mode=btn.dataset.mode;
     document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
     chooseTarget(true,0);
   }));
   soundButton.addEventListener("click",()=>{
     soundOn=!soundOn;
-    if(!soundOn)stopSpeech();else queueInstruction(0);
+    if(!soundOn)stopVoice();else queueInstruction(0);
     syncAudioControls();
   });
   voiceButton.addEventListener("click",()=>{
     voiceOn=!voiceOn;
     try{localStorage.setItem("kids-voice-enabled",String(voiceOn));}catch(e){}
-    if(!voiceOn)stopSpeech();else if(autoVoice)queueInstruction(0);
+    if(!voiceOn)stopVoice();else if(autoVoice)queueInstruction(0);
     syncAudioControls();
   });
   repeatButton.addEventListener("click",()=>{
-    stopSpeech();speak(instructionText());
+    stopVoice();playClip(instructionKey());
   });
   autoCheckbox.addEventListener("change",()=>{
     autoVoice=autoCheckbox.checked;
     try{localStorage.setItem("kids-voice-auto",String(autoVoice));}catch(e){}
-    if(!autoVoice)stopSpeech();else queueInstruction(0);
+    if(!autoVoice)stopVoice();else queueInstruction(0);
     syncAudioControls();
   });
   canvas.addEventListener("pointerdown",touch);
   window.addEventListener("resize",()=>{if(active)resize();});
   window.addEventListener("hashchange",renderRoute);
-  document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopSpeech();});
-  if(speechSupported)window.speechSynthesis.addEventListener("voiceschanged",syncAudioControls);
-  syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);
+  document.addEventListener("visibilitychange",()=>{last=0;if(document.hidden)stopVoice();});
+  syncAudioControls();renderRoute();frameHandle=requestAnimationFrame(frame);checkVoiceAssets();
   if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
 })();
 </script>
