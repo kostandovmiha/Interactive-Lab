@@ -176,7 +176,7 @@ const applyFormat=(editor,command,value)=>{
  rememberAfterCommand(editor);
 };
 document.addEventListener("selectionchange",rememberRichSelection);
-let course=blank(),active="",mode="notes",access="",expiresAt=0,fileId="",connected=false,loaded=false,dirty=false,saving=false,revision=0,saveTimer=0,tokenTimer=0,authPending=null,authEpoch=0,picNote="",imageURLs=new Map();
+let course=blank(),active="",mode="notes",access="",expiresAt=0,fileId="",connected=false,loaded=false,dirty=false,saving=false,revision=0,saveTimer=0,tokenTimer=0,authPending=null,authEpoch=0,silentBlocked=false,picNote="",imageURLs=new Map();
 const tokenStoreKey="ll-temporary-drive-token-v1";
 const tokenReady=()=>Boolean(access&&expiresAt>Date.now()+60*1000);
 const clearToken=()=>{
@@ -317,7 +317,7 @@ async function request(url,opts={}){
  if(!r.ok){
   let msg=r.statusText;
   try{msg=(await r.json()).error.message||msg;}catch(e){}
-  if(r.status===401){clearToken();sync(dirty?"Не збережено · потрібен вхід":"Потрібен вхід","err");}
+  if(r.status===401){clearToken();connected=false;silentBlocked=true;sync(dirty?"Не збережено · потрібен вхід":"Потрібен вхід","err");}
   throw Error("Drive "+r.status+": "+msg);
  }
  return r;
@@ -356,6 +356,7 @@ function waitGoogle(){
 function auth({silent=false}={}){
  if(!config.client)return Promise.reject(Error("Введи OAuth Client ID у налаштуваннях."));
  if(tokenReady())return Promise.resolve();
+ if(silent&&silentBlocked)return Promise.reject(Error("Потрібен вхід · натисни «Підключити»."));
  if(authPending)return authPending;
  const epoch=authEpoch;
  let settle;
@@ -370,8 +371,8 @@ function auth({silent=false}={}){
     if(settled)return;
     settled=true;clearTimeout(timeout);
     if(epoch!==authEpoch){settle.reject(Error("Підключення було змінене."));return;}
-    if(err)settle.reject(err);
-    else try{rememberToken(token);settle.resolve();}catch(e){settle.reject(e);}
+    if(err){if(silent)silentBlocked=true;settle.reject(err);}
+    else try{silentBlocked=false;rememberToken(token);settle.resolve();}catch(e){settle.reject(e);}
    }
    const client=google.accounts.oauth2.initTokenClient({
     client_id:config.client,scope:"https://www.googleapis.com/auth/drive.file",
@@ -383,7 +384,7 @@ function auth({silent=false}={}){
   }catch(e){settle.reject(e);}
  };
  if(window.google?.accounts?.oauth2)start(); // preserve gesture for manual sign-in
- else waitGoogle().then(start,e=>settle.reject(e));
+ else waitGoogle().then(start,e=>{if(silent)silentBlocked=true;settle.reject(e);});
  pending.finally(()=>{if(authPending===pending)authPending=null;}).catch(()=>{});
  return pending;
 }
@@ -596,7 +597,7 @@ const readConfig=()=>{
  config.apiKey=$("apiKey").value.trim();
  config.project=$("project").value.trim();
  if(before!==config.client){
-  authEpoch++;clearToken();connected=false;loaded=false;fileId="";
+  authEpoch++;silentBlocked=false;clearToken();connected=false;loaded=false;fileId="";
   sync("Параметри OAuth змінені · підключи знову");
  }
  settingsSave();
