@@ -1,0 +1,80 @@
+{
+  "language": "uk-UA",
+  "voice": "Tetiana",
+  "source": "https://huggingface.co/RomanStasyshyn/uk_UA-tetiana-high",
+  "modelLicense": "Apache-2.0",
+  "files": {
+    "hello": {
+      "text": "Привіт! Давай лопати кульки!",
+      "src": "./audio/hello.ogg"
+    },
+    "free": {
+      "text": "Торкнися будь-якої кульки.",
+      "src": "./audio/free.ogg"
+    },
+    "red": {
+      "text": "Знайди червону кульку.",
+      "src": "./audio/red.ogg"
+    },
+    "yellow": {
+      "text": "Знайди жовту кульку.",
+      "src": "./audio/yellow.ogg"
+    },
+    "blue": {
+      "text": "Знайди синю кульку.",
+      "src": "./audio/blue.ogg"
+    },
+    "green": {
+      "text": "Знайди зелену кульку.",
+      "src": "./audio/green.ogg"
+    },
+    "retry-red": {
+      "text": "Шукай червону кульку.",
+      "src": "./audio/retry-red.ogg"
+    },
+    "retry-yellow": {
+      "text": "Шукай жовту кульку.",
+      "src": "./audio/retry-yellow.ogg"
+    },
+    "retry-blue": {
+      "text": "Шукай синю кульку.",
+      "src": "./audio/retry-blue.ogg"
+    },
+    "retry-green": {
+      "text": "Шукай зелену кульку.",
+      "src": "./audio/retry-green.ogg"
+    },
+    "great": {
+      "text": "Молодець!",
+      "src": "./audio/great.ogg"
+    },
+    "wonderful": {
+      "text": "Чудово!",
+      "src": "./audio/wonderful.ogg"
+    },
+    "super": {
+      "text": "Супер!",
+      "src": "./audio/super.ogg"
+    },
+    "hooray": {
+      "text": "Ура!",
+      "src": "./audio/hooray.ogg"
+    },
+    "yes": {
+      "text": "Так! Молодець!",
+      "src": "./audio/yes.ogg"
+    },
+    "again": {
+      "text": "Давай ще!",
+      "src": "./audio/again.ogg"
+    },
+    "excellent": {
+      "text": "Прекрасно!",
+      "src": "./audio/excellent.ogg"
+    },
+    "good-job": {
+      "text": "Ти молодець!",
+      "src": "./audio/good-job.ogg"
+    }
+  }
+}
