@@ -1,0 +1,52 @@
+name: Generate ElevenLabs voice previews
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice_ids:
+        description: "1–5 voice IDs from your ElevenLabs account, separated by commas"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: elevenlabs-voice-previews
+  cancel-in-progress: false
+
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate ElevenLabs secret
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -z "$ELEVENLABS_API_KEY" ]; then
+            echo "::error::Set ELEVENLABS_API_KEY in Settings > Secrets and variables > Actions before running."
+            exit 1
+          fi
+      - name: Generate five-or-fewer Ukrainian voice previews
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          VOICE_IDS: ${{ inputs.voice_ids }}
+        run: python scripts/generate_elevenlabs_samples.py
+      - name: Commit generated MP3 previews
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A voice-lab/samples
+          if git diff --cached --quiet; then
+            echo "No audio changes."
+          else
+            git commit -m "build(voice): publish ElevenLabs Ukrainian voice comparison samples"
+            git push origin HEAD:main
+          fi
