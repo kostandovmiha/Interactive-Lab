@@ -222,7 +222,7 @@ const updateWatch=(next,action)=>{
  const old=getWatch();
  const completed=Object.fromEntries(Object.entries(old.completed).map(([key,arr])=>[key,Array.isArray(arr)?arr.filter(v=>normalizeVideo(v)!==null):[]]));
  let lastDone=old.lastDone;
- let {weekId,video,time}=next;
+ let {weekId,video,time}=next||{weekId:old.weekId,video:old.video,time:old.time};
  if(action==="done"){
   const watched=new Set(completed[weekId]||[]);
   watched.add(video);
@@ -431,7 +431,7 @@ $("main").oninput=e=>{
 $("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
  if(el.id==="watchWeek"){
   const watch=getWatch(),completed=watch.completed[el.value]||[];
-  const next=Array.isArray(completed)?Math.max(1,...completed.map(x=>normalizeVideo(x)||0))+1:1;
+  const next=Array.isArray(completed)?Math.max(0,...completed.map(x=>normalizeVideo(x)||0))+1:1;
   const videoInput=$("watchVideo"),timeInput=$("watchTime");
   if(videoInput)videoInput.value=Math.min(next,999);
   if(timeInput)timeInput.value="";
