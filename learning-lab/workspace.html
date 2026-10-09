@@ -29,6 +29,22 @@ dialog{background:#15233a;color:var(--ink);border:1px solid #527088;border-radiu
 .rich-editor:empty:before{content:attr(data-placeholder);pointer-events:none;color:#8295b0}
 .rich-editor mark{color:#eef6ff}
 @media(max-width:760px){.richbar .shortcut{display:none}.richbar select{min-width:95px}}
+
+/* Course video progress tracker; separate from lesson/note completion. */
+.watch-track{margin:0 0 29px;padding:20px 22px;background:linear-gradient(115deg,#19364b,#17263b 65%);border:1px solid #497285;border-radius:16px}
+.watch-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.watch-title{font-size:12px;letter-spacing:.09em;font-weight:850;color:#82dfcb;text-transform:uppercase;margin-bottom:9px}
+.watch-next{font-size:clamp(19px,3vw,27px);font-weight:850;letter-spacing:-.035em;line-height:1.25}
+.watch-meta{color:#a7c1d0;font-size:12px;margin-top:7px;line-height:1.5}
+.watch-fields{display:flex;gap:11px;flex-wrap:wrap;margin:16px 0 14px;align-items:flex-end}
+.watch-fields label{display:flex;flex:1;min-width:120px;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#b9cfde}
+.watch-fields label.watch-week{flex:2;min-width:185px}
+.watch-fields input,.watch-fields select{width:100%;min-height:38px;padding:9px 11px}
+.watch-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.watch-actions .primary{font-size:13px}
+.watch-actions .watch-undo{font-size:12px}
+.watch-hint{font-size:11px;line-height:1.6;color:#9bb3c6;margin-top:12px}
+@media(max-width:600px){.watch-track{padding:16px}.watch-fields label{min-width:100px}.watch-actions button{flex:1}}
 </style><script src="https://accounts.google.com/gsi/client" async defer></script><script src="https://apis.google.com/js/api.js" async defer></script></head>
 <body>
 <header><a href="./" class="brand">← INTERACTIVE<b>LAB</b> / LEARNING</a><div class="right"><span id="sync" class="sync">Google Drive не підключено</span><button id="connect" class="primary">☁ Підключити</button><button id="settingsBtn">⚙</button></div></header>
@@ -175,6 +191,73 @@ $("sectionLabel").textContent=thematic?"Теми та матеріали":"Ти�
 $("addWeek").textContent=thematic?"+ Тема":"+ Тиждень";
 $("folderSuggestion").textContent=project.folderName?"Вибери створену папку «"+project.name+"» у Google Picker.":"Для нового напряму створи папку на Google Drive й вибери її у Google Picker.";
 document.title="Learning Lab · "+project.name;
+/* The playback pointer belongs to the course, not its individual note or lesson. */
+const defaultWatch=()=>{
+ const weekId=course.weeks[0]?.id||"";
+ const rebelway=projectId==="rebelway";
+ return {version:1,weekId,video:rebelway?5:1,time:"",completed:rebelway&&weekId?{[weekId]:[1,2,3,4]}:{},lastDone:null};
+};
+const getWatch=()=>{
+ const w=course.watch;
+ if(!w||typeof w!=="object"||!course.weeks.some(x=>x.id===w.weekId))return defaultWatch();
+ return {version:1,weekId:w.weekId,video:Number.isSafeInteger(w.video)&&w.video>=1&&w.video<=999?w.video:1,
+ time:typeof w.time==="string"?w.time:"",completed:w.completed&&typeof w.completed==="object"&&!Array.isArray(w.completed)?w.completed:{},
+ lastDone:w.lastDone||null};
+};
+const normalizeVideo=value=>{
+ const n=Number(value);
+ return Number.isSafeInteger(n)&&n>=1&&n<=999?n:null;
+};
+const validWatchTime=time=>time===""||/^(?:(?:\d{1,2}):)?[0-5]?\d:[0-5]\d$/.test(time);
+const readWatchForm=()=>{
+ const weekId=$("watchWeek")?.value;
+ const video=normalizeVideo($("watchVideo")?.value);
+ const time=($("watchTime")?.value||"").trim();
+ if(!course.weeks.some(w=>w.id===weekId)){toast("Вибери тиждень.");return null;}
+ if(!video){toast("Вкажи номер відео від 1 до 999.");return null;}
+ if(!validWatchTime(time)){toast("Таймкод: хв:сек або год:хв:сек, наприклад 12:35.");return null;}
+ return {weekId,video,time};
+};
+const updateWatch=(next,action)=>{
+ const old=getWatch();
+ const completed=Object.fromEntries(Object.entries(old.completed).map(([key,arr])=>[key,Array.isArray(arr)?arr.filter(v=>normalizeVideo(v)!==null):[]]));
+ let lastDone=old.lastDone;
+ let {weekId,video,time}=next;
+ if(action==="done"){
+  const watched=new Set(completed[weekId]||[]);
+  watched.add(video);
+  completed[weekId]=[...watched].sort((a,b)=>a-b);
+  lastDone={weekId,video};
+  video=video+1;time="";
+  if(video>999){toast("Досягнуто максимальної кількості відео в тижні.");return false;}
+ }else if(action==="undo"){
+  if(!lastDone||!course.weeks.some(w=>w.id===lastDone.weekId))return false;
+  weekId=lastDone.weekId;video=lastDone.video;time="";
+  completed[weekId]=(completed[weekId]||[]).filter(n=>n!==video);
+  lastDone=null;
+ }
+ course.watch={version:1,weekId,video,time,completed,lastDone};
+ changed();render();return true;
+};
+const renderWatch=()=>{
+ if(thematic||!course.weeks.length)return "";
+ const w=getWatch(),week=course.weeks.find(x=>x.id===w.weekId)||course.weeks[0];
+ const total=Object.values(w.completed).reduce((sum,arr)=>sum+(Array.isArray(arr)?arr.length:0),0);
+ const watchedHere=(w.completed[week.id]||[]).length;
+ const nextText=week.name+" · відео "+w.video+(w.time?" · "+w.time:"");
+ return '<section class="watch-track" aria-label="Прогрес відеокурсу">'+
+ '<div class="watch-top"><div><div class="watch-title">▶ Продовжити перегляд</div><div class="watch-next">'+esc(nextText)+'</div>'+
+ '<div class="watch-meta">Завершено '+total+' відео загалом · '+watchedHere+' у '+esc(week.name)+
+ ' · прогрес не змінює статус конспекту</div></div>'+
+ '<button type="button" class="ghost mini" data-watch="resetForm" title="Повернути останню збережену позицію у поля">↺ Повернути поля</button></div>'+
+ '<div class="watch-fields"><label class="watch-week">Тиждень<select id="watchWeek">'+course.weeks.map(x=>'<option value="'+esc(x.id)+'" '+(x.id===week.id?"selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select></label>'+
+ '<label>Відео №<input id="watchVideo" type="number" min="1" max="999" step="1" value="'+w.video+'"></label>'+
+ '<label>Зупинився на<input id="watchTime" type="text" inputmode="numeric" placeholder="12:35" maxlength="8" value="'+esc(w.time)+'"></label></div>'+
+ '<div class="watch-actions"><button type="button" class="primary" data-watch="done">✓ Відео завершено → наступне</button>'+
+ '<button type="button" data-watch="save">📍 Зберегти позицію</button>'+
+ (w.lastDone?'<button type="button" class="ghost watch-undo" data-watch="undo">↶ Скасувати останнє завершення</button>':"")+
+ '</div><div class="watch-hint">Якщо відео не закінчене — вкажи таймкод і натисни «Зберегти позицію». Після останнього відео тижня вибери наступний тиждень вручну.</div></section>';
+};
 const lessons=()=>course.weeks.flatMap(w=>w.lessons.map(l=>({w,l})));
 const chosen=()=>lessons().find(x=>x.l.id===active);
 const valid=c=>c&&c.schema===1&&Array.isArray(c.weeks)&&c.weeks.length<101&&c.weeks.every(w=>Array.isArray(w.lessons)&&w.lessons.length<501&&w.lessons.every(l=>Array.isArray(l.notes)&&l.notes.length<1001));
@@ -222,6 +305,7 @@ async function load(){
    course=incoming;dirty=false;
   }else if(!dirty){course=blank();changed();}
   connected=true;
+  if(!thematic&&!course.watch&&course.weeks.length){course.watch=defaultWatch();changed();}
   const preferred=new URLSearchParams(location.search).get("lesson");
   active=lessons().find(x=>x.l.id===preferred)?.l.id||lessons()[0]?.l.id||"";
   render();if(dirty)await flush();else sync("Збережено на Google Drive","ok");
@@ -273,7 +357,7 @@ function render(){
  $("bar").style.width=(items.length?Math.round(done/items.length*100):0)+"%";$("progress").textContent=done+" із "+items.length+(thematic?" матеріалів опрацьовано":" уроків завершено");
  $("nav").innerHTML=course.weeks.map(w=>'<div class="week"><div class="weekhead"><button data-act="renameweek" data-id="'+esc(w.id)+'">'+esc(w.name)+'</button><button class="ghost mini" data-act="addlesson" data-id="'+esc(w.id)+'">'+(thematic?"+ Матеріал":"+ Урок")+'</button></div>'+w.lessons.map(l=>'<button class="lesson '+(l.id===active?"active":"")+'" data-act="select" data-id="'+esc(l.id)+'"><i class="dot '+esc(l.status)+'"></i>'+esc(l.name)+'</button>').join("")+'</div>').join("");
  const obj=chosen(),main=$("main");
- if(!obj){main.innerHTML='<div class="eyebrow">Learning Lab · '+(thematic?'Самостійне вивчення':'Курс')+'</div><h1>'+esc(project.name)+'</h1><p class="muted">'+(thematic?'Додай матеріал до теми й вкажи джерело, посилання та версію Houdini.':'Додай перший урок у потрібний тиждень.')+'</p>'+(connected?"":'<div class="notice warn">Зараз записи не зберігаються. Спершу підключи Google Drive або експортуй JSON вручну.</div>')+'<div class="empty"><strong>📖 Нічого не вибрано</strong>Додай '+(thematic?"матеріал":"урок")+', щоб почати.</div>';return;}
+ if(!obj){main.innerHTML=renderWatch()+'<div class="eyebrow">Learning Lab · '+(thematic?'Самостійне вивчення':'Курс')+'</div><h1>'+esc(project.name)+'</h1><p class="muted">'+(thematic?'Додай матеріал до теми й вкажи джерело, посилання та версію Houdini.':'Додай перший урок у потрібний тиждень.')+'</p>'+(connected?"":'<div class="notice warn">Зараз записи не зберігаються. Спершу підключи Google Drive або експортуй JSON вручну.</div>')+'<div class="empty"><strong>📖 Нічого не вибрано</strong>Додай '+(thematic?"матеріал":"урок")+', щоб почати.</div>';return;}
  const l=obj.l;
  const sourceHTML=thematic?'<div class="sourcebox"><div class="row"><label>Джерело<input id="materialSource" placeholder="SideFX / Entagma / YouTube" value="'+esc(l.source||"")+'"></label><label>Версія Houdini<input id="materialVersion" placeholder="22" value="'+esc(l.version||"")+'"></label></div><label>Посилання на матеріал<input id="materialURL" type="url" placeholder="https://..." value="'+esc(l.url||"")+'"></label>'+(validURL(l.url)?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">↗ Відкрити джерело</a>':'')+'</div>':"";
  let body="";
@@ -282,7 +366,7 @@ function render(){
   const questions=l.notes.filter(n=>n.type==="question"),recipes=l.notes.filter(n=>n.type==="recipe"),experiments=l.notes.filter(n=>n.type==="experiment");
   body='<div class="review"><div class="stat"><strong>'+l.notes.length+'</strong><small>Записів</small></div><div class="stat"><strong>'+questions.length+'</strong><small>Питань</small></div><div class="stat"><strong>'+(recipes.length+experiments.length)+'</strong><small>Практичних блоків</small></div></div><h2>Питання для повторення</h2>'+(questions.length?questions.map(n=>'<div class="feed">'+esc(n.time?("⏱ "+n.time+" · "):"")+esc(n.text)+'</div>').join(""):'<p class="help">Наразі питань немає.</p>')+'<h2 style="margin-top:28px">Рецепти та експерименти</h2>'+(recipes.concat(experiments).map(n=>'<div class="feed"><b>'+esc(types[n.type])+'</b> · '+esc(n.text)+'</div>').join("")||'<p class="help">Практичних блоків ще немає.</p>');
  }
- main.innerHTML='<div class="top"><div><div class="eyebrow">'+esc(obj.w.name)+'</div><input class="lessonname" id="lessonName" value="'+esc(l.name)+'" aria-label="Назва уроку"></div><div class="tabs"><button data-action="mode" data-id="notes" class="'+(mode==="notes"?"on":"")+'">Конспект</button><button data-action="mode" data-id="review" class="'+(mode==="review"?"on":"")+'">Огляд</button></div></div><div class="toolbar"><span>Статус:</span><select id="lessonStatus"><option value="todo" '+(l.status==="todo"?"selected":"")+'>Не почато</option><option value="practice" '+(l.status==="practice"?"selected":"")+'>У процесі</option><option value="done" '+(l.status==="done"?"selected":"")+'>Завершено</option></select><button id="quick">'+(document.body.classList.contains("quick")?"Повний режим":"⛶ Quick Notes")+'</button><button data-action="deleteLesson" class="ghost danger">Видалити '+(thematic?"матеріал":"урок")+'</button></div>'+sourceHTML+body;
+ main.innerHTML=renderWatch()+'<div class="top"><div><div class="eyebrow">'+esc(obj.w.name)+'</div><input class="lessonname" id="lessonName" value="'+esc(l.name)+'" aria-label="Назва уроку"></div><div class="tabs"><button data-action="mode" data-id="notes" class="'+(mode==="notes"?"on":"")+'">Конспект</button><button data-action="mode" data-id="review" class="'+(mode==="review"?"on":"")+'">Огляд</button></div></div><div class="toolbar"><span>Статус:</span><select id="lessonStatus"><option value="todo" '+(l.status==="todo"?"selected":"")+'>Не почато</option><option value="practice" '+(l.status==="practice"?"selected":"")+'>У процесі</option><option value="done" '+(l.status==="done"?"selected":"")+'>Завершено</option></select><button id="quick">'+(document.body.classList.contains("quick")?"Повний режим":"⛶ Quick Notes")+'</button><button data-action="deleteLesson" class="ghost danger">Видалити '+(thematic?"матеріал":"урок")+'</button></div>'+sourceHTML+body;
  showImages();
 }
 $("nav").onclick=e=>{
@@ -316,6 +400,13 @@ $("main").addEventListener("change",e=>{
  paletteControl.value="";
 });
 $("main").onclick=e=>{
+ const watchBtn=e.target.closest("[data-watch]");
+ if(watchBtn){
+  if(watchBtn.dataset.watch==="resetForm"){render();return;}
+  if(watchBtn.dataset.watch==="undo"){updateWatch(null,"undo");return;}
+  const position=readWatchForm();if(!position)return;
+  updateWatch(position,watchBtn.dataset.watch);return;
+ }
  const b=e.target.closest("[data-action],[data-format]"),obj=chosen();if(!obj)return;
  if(e.target.id==="quick"){document.body.classList.toggle("quick");render();return;}
  if(!b)return;
@@ -338,6 +429,14 @@ $("main").oninput=e=>{
  if(el.dataset.note){const n=obj.l.notes.find(n=>n.id===el.dataset.note);if(n){n[el.dataset.field]=el.value;changed();}}
 };
 $("main").onchange=e=>{const el=e.target,obj=chosen();if(!obj)return;
+ if(el.id==="watchWeek"){
+  const watch=getWatch(),completed=watch.completed[el.value]||[];
+  const next=Array.isArray(completed)?Math.max(1,...completed.map(x=>normalizeVideo(x)||0))+1:1;
+  const videoInput=$("watchVideo"),timeInput=$("watchTime");
+  if(videoInput)videoInput.value=Math.min(next,999);
+  if(timeInput)timeInput.value="";
+  return;
+ }
  if(el.id==="lessonStatus"){obj.l.status=el.value;changed();render();}
  if(el.id==="lessonName"||el.id==="materialURL")render();
  if(el.dataset.note&&el.dataset.field==="type")render();
