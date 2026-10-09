@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7ccce9">
+<meta name="description" content="Мій маленький світ — добрі сенсорні мініігри для малюків.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<title>Мій маленький світ — Kids Playground</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#28384e;--purple:#7953c7;--pink:#fa83b4;--blue:#4aafdd;--yellow:#ffdb71;--green:#6ac89e}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;overflow-x:hidden}
+body{background:linear-gradient(160deg,#d9f5ff 0%,#f5ecff 53%,#fff0d2 100%);min-height:100dvh}
+button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+a{color:inherit}
+button:focus-visible,a:focus-visible{outline:4px solid #603fc4;outline-offset:3px}
+.screen{max-width:1000px;margin:auto;padding:clamp(14px,3vw,28px);min-height:100dvh}
+.screen[hidden]{display:none}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.parent-link{text-decoration:none;color:#56708c;font-size:13px;font-weight:700;background:#ffffff9c;padding:11px 14px;border-radius:14px}
+.brand{font-size:12px;font-weight:900;letter-spacing:.14em;color:#8563b2}
+.intro{text-align:center;padding:27px 0 22px}
+.bigemoji{font-size:48px;line-height:1.1;filter:drop-shadow(0 5px 5px #946e991b)}
+h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#514081;line-height:1.15}
+.subtitle{font-size:clamp(15px,2.5vw,19px);margin:8px auto 0;color:#687791;max-width:470px;line-height:1.5}
+.catalog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:14px 0 40px}
+.game-card{border:3px solid #fff;border-radius:27px;background:#fff9;min-height:215px;padding:20px;box-shadow:0 10px 25px #67628d18;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:9px}
+.game-card.featured{background:linear-gradient(140deg,#fff,#fce4f4);border-color:#ffffff;transition:transform .15s}
+.game-card.featured:hover{transform:translateY(-3px)}
+.game-card .illustration{font-size:55px;line-height:1.3;filter:drop-shadow(0 6px 2px #00000010)}
+.game-card strong{font-size:21px;font-weight:850;letter-spacing:-.025em;color:#43346f}
+.game-card small{font-size:13px;color:#717b90;line-height:1.45}
+.game-card .pill{border-radius:99px;background:#8058ce;color:#fff;font-size:13px;font-weight:900;padding:10px 18px;margin-top:auto}
+.game-card.preview{opacity:.7;pointer-events:none}
+.game-card.preview .pill{background:#ebe4f5;color:#75618a}
+.note{text-align:center;font-size:12px;color:#7f7b99;margin-bottom:28px}
+#game .topline{margin-bottom:14px}
+.back{background:#fff;border:0;color:#695393;border-radius:15px;font-size:16px;font-weight:800;padding:12px 17px;box-shadow:0 4px 0 #cfc6e7}
+.metrics{display:flex;align-items:center;gap:10px}
+.counter{border-radius:18px;background:#fff9;padding:10px 17px;font-size:19px;font-weight:900;color:#7652bb}
+.sound{width:49px;height:46px;font-size:21px;border:0;border-radius:16px;background:#fff;box-shadow:0 4px 0 #d6cce4}
+.game-heading{text-align:center;margin:0 0 12px}
+.game-heading h2{margin:0;font-weight:900;color:#6550a5;font-size:clamp(25px,5vw,39px)}
+.game-heading p{min-height:28px;font-size:clamp(15px,3vw,22px);font-weight:800;color:#6e7790;margin:6px 0 0}
+.target-dot{display:inline-block;width:23px;height:23px;border:3px solid #fff;box-shadow:0 1px 5px #0002;border-radius:50%;vertical-align:-4px;margin:0 5px}
+.field{height:clamp(330px,62dvh,600px);position:relative;overflow:hidden;border:5px solid #fff;border-radius:30px;background:linear-gradient(#8edcfa 0%,#d0f2fc 70%,#eaf9d9 100%);box-shadow:0 13px 30px #6f6f971c}
+.field:before,.field:after{content:"";position:absolute;pointer-events:none;background:#ffffffa8;border-radius:99px;width:130px;height:40px;box-shadow:30px -12px 0 5px #ffffffa8,70px 4px 0 #ffffffa8;opacity:.6}
+.field:before{top:18%;left:7%}.field:after{top:37%;right:19%;transform:scale(.7)}
+.field canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:pointer}
+.settings{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:16px 0 0}
+.mode{border:3px solid #fff;border-radius:18px;background:#fff9;font-size:15px;font-weight:850;color:#755899;min-height:56px;padding:10px 19px}
+.mode.selected{background:#8460cf;color:#fff;box-shadow:0 5px 0 #6742af}
+.tip{font-size:13px;color:#7d8b9e;text-align:center;line-height:1.5;margin:16px auto 0}
+.feedback{position:absolute;left:50%;top:35%;transform:translate(-50%,-50%);padding:9px 19px;border-radius:99px;background:#fff;font-size:23px;font-weight:900;white-space:nowrap;color:#7d50b4;pointer-events:none;opacity:0;transition:opacity .18s}
+.feedback.show{opacity:1}
+@media(max-width:740px){.catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.game-card{min-height:185px;padding:17px}.game-card .illustration{font-size:44px}}
+@media(max-width:480px){.catalog{grid-template-columns:1fr 1fr;gap:11px}.game-card{padding:14px;border-radius:20px;min-height:185px}.game-card strong{font-size:17px}.game-card small{font-size:11px}.game-card .illustration{font-size:39px}.parent-link{font-size:11px;padding:9px 10px}.field{height:clamp(340px,61dvh,520px)}.settings{gap:8px}.mode{padding:10px 13px;font-size:13px;flex:1}.back{font-size:14px}.counter{font-size:16px;padding:9px 12px}}
+@media(prefers-reduced-motion:reduce){.game-card.featured{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<section id="home" class="screen">
+  <div class="topline"><a class="parent-link" href="../">← Interactive Lab</a><div class="brand">KIDS PLAYGROUND ✦</div></div>
+  <div class="intro"><div class="bigemoji" aria-hidden="true">🌈 🧸 ⭐</div><h1>Мій маленький світ</h1><p class="subtitle">Обирай гру, натискай на картинки та відкривай маленькі дива!</p></div>
+  <div class="catalog">
+    <button class="game-card featured" id="open-balloons"><span class="illustration" aria-hidden="true">🎈🎈</span><strong>Лопни кульку</strong><small>Веселі кульки, кольори та чарівні звуки</small><span class="pill">▶ Грати</span></button>
+    <article class="game-card preview"><span class="illustration" aria-hidden="true">🐮🐥</span><strong>Весела ферма</strong><small>Знайомимось із тваринами та їхніми голосами</small><span class="pill">Незабаром</span></article>
+    <article class="game-card preview"><span class="illustration" aria-hidden="true">🔴🔺</span><strong>Чарівні фігури</strong><small>Знаходимо місце для кожної фігурки</small><span class="pill">Незабаром</span></article>
+    <article class="game-card preview"><span class="illustration" aria-hidden="true">🦕🍎</span><strong>Нагодуй динозаврика</strong><small>Пригощаємо веселого друга</small><span class="pill">Незабаром</span></article>
+    <article class="game-card preview"><span class="illustration" aria-hidden="true">🧩🐻</span><strong>Знайди пару</strong><small>Відшукуємо дві однакові картинки</small><span class="pill">Незабаром</span></article>
+  </div>
+  <p class="note">Без реклами, поспіху й програшів. Грай у своєму темпі 💛</p>
+</section>
+<section id="game" class="screen" hidden>
+  <div class="topline"><button class="back" id="go-home" type="button">← Ігри</button><div class="metrics"><span class="counter" aria-label="Лопнуто кульок">⭐ <span id="score">0</span></span><button class="sound" id="sound" type="button" aria-label="Вимкнути звук" aria-pressed="true">🔊</button></div></div>
+  <div class="game-heading"><h2>🎈 Лопни кульку!</h2><p id="instruction" aria-live="polite">Торкнися будь-якої кульки!</p></div>
+  <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div></div>
+  <div class="settings" role="group" aria-label="Режим гри"><button type="button" class="mode selected" data-mode="free" aria-pressed="true">🎈 Просто грати</button><button type="button" class="mode" data-mode="colors" aria-pressed="false">🎨 Вивчаємо кольори</button></div>
+  <p class="tip">Немає таймера й помилок — тільки гра та цікаві відкриття.</p>
+</section>
+</main>
+<script>
+(function(){
+  "use strict";
+  const home=document.getElementById("home"),game=document.getElementById("game"),field=document.getElementById("field");
+  const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
+  const instruction=document.getElementById("instruction"),scoreNode=document.getElementById("score"),feedback=document.getElementById("feedback"),soundButton=document.getElementById("sound");
+  const palette=[
+    {name:"червону",hex:"#ff6e76",light:"#ffb1b5"},
+    {name:"жовту",hex:"#ffcc4f",light:"#fff2a3"},
+    {name:"синю",hex:"#5c9ded",light:"#bce2ff"},
+    {name:"зелену",hex:"#67c98b",light:"#b9f5cb"}
+  ];
+  let W=400,H=460,balloons=[],particles=[],score=0,mode="free",target=null,soundOn=true,audio=null,active=false;
+  let last=0,frameHandle=0,feedbackTimer=0,time=0;
+  const rand=(a,b)=>Math.random()*(b-a)+a;
+  function resize(){
+    const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+    const oldW=W,oldH=H;W=r.width;H=r.height;
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+    balloons.forEach(b=>{b.x=Math.max(b.r,Math.min(W-b.r,b.x*(W/oldW)));b.y=Math.max(b.r,Math.min(H-b.r,b.y*(H/oldH)));});
+  }
+  function desiredCount(){return Math.min(10,Math.max(5,Math.round(W*H/44000)));}
+  function newBalloon(extraBottom=false){
+    const r=Math.max(30,Math.min(47,W/8.2))*rand(.89,1.13);
+    let x=rand(r+5,Math.max(r+6,W-r-5)),y=extraBottom?H+r:rand(r+15,Math.max(r+16,H-r-10));
+    for(let i=0;i<35&&!extraBottom;i++){
+      x=rand(r+5,W-r-5);y=rand(r+15,H-r-10);
+      if(balloons.every(b=>Math.hypot(b.x-x,b.y-y)>b.r+r+10))break;
+    }
+    const b={x:x,y:y,r:r,color:palette[Math.floor(rand(0,palette.length))],phase:rand(0,6.28),speed:rand(7,15),id:Math.random()};
+    return b;
+  }
+  function fill(){
+    balloons=[];for(let i=0;i<desiredCount();i++)balloons.push(newBalloon());
+    chooseTarget();
+  }
+  function chooseTarget(){
+    if(mode!=="colors"){target=null;instruction.textContent="Торкнися будь-якої кульки!";return;}
+    if(!balloons.length)return;
+    target=balloons[Math.floor(rand(0,balloons.length))].color;
+    instruction.textContent="";
+    const dot=document.createElement("span");dot.className="target-dot";dot.style.background=target.hex;
+    instruction.append("Знайди ",dot," "+target.name+" кульку!");
+  }
+  function rounded(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+  function drawBalloon(b){
+    const x=b.x+Math.sin(time/1100+b.phase)*5,y=b.y;
+    ctx.save();
+    ctx.strokeStyle="#7a93a97b";ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(x,y+b.r*.93+6);ctx.bezierCurveTo(x+13,y+b.r+19,x-12,y+b.r+37,x+2,y+b.r+49);ctx.stroke();
+    ctx.fillStyle=b.color.hex;
+    ctx.beginPath();ctx.moveTo(x,y+b.r*.85);ctx.lineTo(x-7,y+b.r+10);ctx.lineTo(x+7,y+b.r+10);ctx.closePath();ctx.fill();
+    ctx.shadowColor=b.color.hex+"99";ctx.shadowBlur=8;
+    ctx.beginPath();ctx.ellipse(x,y,b.r*.86,b.r,0,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    const glow=ctx.createRadialGradient(x-b.r*.28,y-b.r*.4,1,x,y,b.r*1.2);
+    glow.addColorStop(0,b.color.light);glow.addColorStop(.45,b.color.hex);glow.addColorStop(1,b.color.hex);
+    ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(x,y,b.r*.86,b.r,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#ffffff91";ctx.beginPath();ctx.ellipse(x-b.r*.3,y-b.r*.34,b.r*.13,b.r*.29,-.28,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#3e455e";const e=b.r*.18;
+    ctx.beginPath();ctx.arc(x-e,y+b.r*.08,Math.max(2,b.r*.065),0,Math.PI*2);ctx.arc(x+e,y+b.r*.08,Math.max(2,b.r*.065),0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.strokeStyle="#66516a";ctx.lineWidth=2;ctx.arc(x,y+b.r*.12,b.r*.16,.1,Math.PI-.1);ctx.stroke();
+    ctx.restore();
+  }
+  function drawParticle(p){
+    ctx.save();ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+    ctx.fillStyle=p.color;
+    if(p.star){ctx.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5,r=i%2?2:6;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();}
+    else ctx.fillRect(-3,-5,6,10);ctx.restore();
+  }
+  function draw(dt){
+    ctx.clearRect(0,0,W,H);
+    balloons.forEach(b=>{b.y-=b.speed*dt;if(b.y < -b.r-60){const repl=newBalloon(true);repl.color=b.color;Object.assign(b,repl);}drawBalloon(b);});
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=80*dt;p.rot+=p.spin*dt;if(p.life<=0)particles.splice(i,1);else drawParticle(p);}
+  }
+  function frame(t){
+    const dt=Math.min((t-last)/1000||0,.04);last=t;time=t;
+    if(active)draw(dt);
+    frameHandle=requestAnimationFrame(frame);
+  }
+  function popSound(){
+    if(!soundOn)return;
+    try{
+      const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+      audio=audio||new C();if(audio.state==="suspended")audio.resume();
+      const o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;
+      o.type="sine";o.frequency.setValueAtTime(420,now);o.frequency.exponentialRampToValueAtTime(160,now+.12);
+      g.gain.setValueAtTime(.075,now);g.gain.exponentialRampToValueAtTime(.001,now+.14);
+      o.connect(g);g.connect(audio.destination);o.start(now);o.stop(now+.15);
+    }catch(e){}
+  }
+  function burst(x,y,color){
+    for(let i=0;i<16;i++){
+      const a=2*Math.PI*i/16+rand(-.2,.2),v=rand(55,160);
+      particles.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rand(.5,.9),maxLife:.9,rot:rand(0,7),spin:rand(-5,5),color:i%3===0?"#fff":color,star:i%3===0});
+    }
+  }
+  function cheer(text){
+    feedback.textContent=text;feedback.classList.add("show");clearTimeout(feedbackTimer);
+    feedbackTimer=setTimeout(()=>feedback.classList.remove("show"),850);
+  }
+  function touch(e){
+    e.preventDefault();if(!active)return;
+    const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+    for(let i=balloons.length-1;i>=0;i--){
+      const b=balloons[i],bx=b.x+Math.sin(time/1100+b.phase)*5;
+      if(Math.pow((x-bx)/(b.r*.94),2)+Math.pow((y-b.y)/(b.r*1.13),2)>1)continue;
+      if(mode==="colors"&&target&&target.name!==b.color.name){cheer("Шукай "+target.name+" 💛");return;}
+      popSound();burst(bx,b.y,b.color.hex);balloons.splice(i,1);
+      score++;scoreNode.textContent=String(score);cheer(["✨ Ура! ✨","🌟 Молодець! 🌟","🎉 Бум! 🎉"][score%3]);
+      setTimeout(()=>{if(active){balloons.push(newBalloon(true));if(mode==="colors")chooseTarget();}},170);
+      return;
+    }
+    for(let i=0;i<4;i++)particles.push({x:x,y:y,vx:rand(-40,40),vy:rand(-60,-10),life:.45,maxLife:.45,rot:0,spin:3,color:"#ffffff",star:true});
+  }
+  function renderRoute(){
+    active=location.hash==="#balloons";home.hidden=active;game.hidden=!active;
+    if(active){resize();if(!balloons.length)fill();}
+  }
+  document.getElementById("open-balloons").addEventListener("click",()=>{location.hash="balloons";});
+  document.getElementById("go-home").addEventListener("click",()=>{location.hash="";});
+  document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>{
+    mode=btn.dataset.mode;
+    document.querySelectorAll("[data-mode]").forEach(b=>{const on=b===btn;b.classList.toggle("selected",on);b.setAttribute("aria-pressed",String(on));});
+    chooseTarget();
+  }));
+  soundButton.addEventListener("click",()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊":"🔇";soundButton.setAttribute("aria-label",soundOn?"Вимкнути звук":"Увімкнути звук");soundButton.setAttribute("aria-pressed",String(soundOn));});
+  canvas.addEventListener("pointerdown",touch);
+  window.addEventListener("resize",()=>{if(active)resize();});
+  window.addEventListener("hashchange",renderRoute);
+  document.addEventListener("visibilitychange",()=>{last=0;});
+  renderRoute();frameHandle=requestAnimationFrame(frame);
+  if("serviceWorker" in navigator && location.protocol==="https:")navigator.serviceWorker.register("./sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
