@@ -44,6 +44,9 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 .game-heading h2{margin:0;font-weight:900;color:#6550a5;font-size:clamp(25px,5vw,39px)}
 .game-heading p{min-height:28px;font-size:clamp(15px,3vw,22px);font-weight:800;color:#6e7790;margin:6px 0 0}
 .game-heading p#instruction{min-height:72px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px;padding:5px 10px;line-height:1.35}
+.voice-state{max-width:690px;margin:-3px auto 10px;padding:9px 12px;text-align:center;border-radius:12px;background:#ffffffa8;color:#5d6980;font-size:13px;font-weight:750;line-height:1.4}
+.voice-state[data-state="error"]{background:#ffe7df;color:#974923}
+.voice-state[data-state="ok"]{background:#e6f8e9;color:#31774e}
 .target-dot{display:inline-block;width:clamp(56px,9vw,68px);height:clamp(56px,9vw,68px);border:5px solid #fff;box-shadow:0 3px 12px #0003;border-radius:50%;flex-shrink:0}
 .field{height:clamp(330px,62dvh,600px);position:relative;overflow:hidden;border:5px solid #fff;border-radius:30px;background:linear-gradient(#8edcfa 0%,#d0f2fc 70%,#eaf9d9 100%);box-shadow:0 13px 30px #6f6f971c}
 .field:before,.field:after{content:"";position:absolute;pointer-events:none;background:#ffffffa8;border-radius:99px;width:130px;height:40px;box-shadow:30px -12px 0 5px #ffffffa8,70px 4px 0 #ffffffa8;opacity:.6}
@@ -83,7 +86,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
 </section>
 <section id="game" class="screen" hidden>
   <div class="topline"><button class="back" id="go-home" type="button">← Ігри</button><div class="metrics"><span class="counter" aria-label="Лопнуто кульок">⭐ <span id="score">0</span></span><button class="sound" id="sound" type="button" aria-label="Вимкнути звук" aria-pressed="true">🔊</button></div></div>
-  <div class="game-heading"><h2>🎈 Лопни кульку!</h2><p id="instruction" aria-live="polite">Торкнися будь-якої кульки!</p></div>
+  <div class="game-heading"><h2>🎈 Лопни кульку!</h2><p id="instruction" aria-live="polite">Торкнися будь-якої кульки!</p><div class="voice-state" id="voice-state" aria-live="polite">Перевіряємо підтримку українського голосу…</div></div>
   <div class="field" id="field"><canvas id="canvas" aria-label="Ігрове поле з різнокольоровими кульками"></canvas><div class="feedback" id="feedback" aria-hidden="true">✨ Чудово! ✨</div></div>
   <div class="settings" role="group" aria-label="Режим гри"><button type="button" class="mode selected" data-mode="free" aria-pressed="true">🎈 Просто грати</button><button type="button" class="mode" data-mode="colors" aria-pressed="false">🎨 Вивчаємо кольори</button></div>
   <div class="voice-controls" role="group" aria-label="Керування голосовими підказками">
@@ -101,7 +104,7 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   const home=document.getElementById("home"),game=document.getElementById("game"),field=document.getElementById("field");
   const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
   const instruction=document.getElementById("instruction"),scoreNode=document.getElementById("score"),feedback=document.getElementById("feedback"),soundButton=document.getElementById("sound");
-  const voiceButton=document.getElementById("voice-toggle"),repeatButton=document.getElementById("repeat-instruction"),autoCheckbox=document.getElementById("auto-voice"),voiceNote=document.getElementById("voice-note");
+  const voiceButton=document.getElementById("voice-toggle"),repeatButton=document.getElementById("repeat-instruction"),autoCheckbox=document.getElementById("auto-voice"),voiceNote=document.getElementById("voice-note"),voiceState=document.getElementById("voice-state");
   const palette=[
     {name:"червону",hex:"#ff6e76",light:"#ffb1b5"},
     {name:"жовту",hex:"#ffcc4f",light:"#fff2a3"},
@@ -114,11 +117,12 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
   try{voiceOn=speechSupported&&localStorage.getItem("kids-voice-enabled")!=="false";autoVoice=localStorage.getItem("kids-voice-auto")!=="false";}catch(e){}
   let last=0,frameHandle=0,feedbackTimer=0,time=0;
   const rand=(a,b)=>Math.random()*(b-a)+a;
+  function setVoiceState(message,type="neutral"){voiceState.textContent=message;voiceState.dataset.state=type;}
   function stopSpeech(){
     clearTimeout(speechTimer);speechTimer=0;
     if(!speechSupported)return;
-    try{window.speechSynthesis.cancel();}catch(e){}
     currentUtterance=null;
+    try{window.speechSynthesis.cancel();}catch(e){}
   }
   function instructionText(){return mode==="colors"&&target?"Знайди "+target.name+" кульку.":"Торкнися будь-якої кульки.";}
   function getUkrainianVoice(){
@@ -131,22 +135,28 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
       const synth=window.speechSynthesis,ukrainian=getUkrainianVoice();
       const voices=synth.getVoices();
       if(!ukrainian){
-        voiceNote.textContent=voices.length
-          ?"На цьому пристрої не знайдено українського голосу. Додай український голос у налаштуваннях синтезу мовлення Windows або Android."
-          :"Список голосів ще завантажується. Спробуй кнопку «Повторити підказку» за мить.";
+        if(voices.length){
+          setVoiceState("🔇 Chrome не має доступного українського голосу — тому чути лише лускання кульок.","error");
+          voiceNote.textContent="Chrome бачить "+voices.length+" інших голосів, але жодного uk-UA. Спробуй Edge або озвучення з готових аудіофайлів.";
+        }else{
+          setVoiceState("⌛ Chrome ще завантажує список голосів. Натисни «Повторити підказку» за мить.");
+          voiceNote.textContent="У браузері наразі доступно 0 голосів.";
+        }
         return false;
       }
       const utterance=new SpeechSynthesisUtterance(text);
       utterance.lang="uk-UA";utterance.voice=ukrainian;utterance.rate=.89;utterance.pitch=1.06;utterance.volume=.88;
-      utterance.onend=()=>{if(currentUtterance===utterance)currentUtterance=null;};
+      utterance.onstart=()=>{if(currentUtterance===utterance)setVoiceState("🗣️ Chrome розпочав озвучення українською.","ok");};
+      utterance.onend=()=>{if(currentUtterance===utterance){currentUtterance=null;setVoiceState("✅ Chrome повідомив про завершення озвучення.","ok");}};
       utterance.onerror=(event)=>{
-        if(currentUtterance===utterance)currentUtterance=null;
-        if(event.error==="not-allowed"||event.error==="audio-busy")voiceNote.textContent="Браузер не дозволив автоматичне озвучення. Натисни «Повторити підказку» та перевір звук.";
-        else voiceNote.textContent="Не вдалося відтворити голос. Перевір український голос у налаштуваннях пристрою.";
+        if(currentUtterance!==utterance)return;
+        currentUtterance=null;
+        setVoiceState("⚠️ Помилка озвучення Chrome: "+(event.error||"невідома")+". Звуки кульок працюють окремо.","error");
+        voiceNote.textContent="Озвучення тексту не вдалося. Спробуй повторити підказку натисканням кнопки.";
       };
-      synth.cancel();currentUtterance=utterance;synth.speak(utterance);
+      stopSpeech();currentUtterance=utterance;setVoiceState("⏳ Chrome готує голосове повідомлення…");synth.speak(utterance);
       return true;
-    }catch(e){return false;}
+    }catch(e){setVoiceState("⚠️ Chrome не зміг запустити озвучення: "+(e&&e.message||"невідома помилка"),"error");return false;}
   }
   function queueInstruction(delay=450){
     clearTimeout(speechTimer);speechTimer=0;
@@ -163,12 +173,22 @@ h1{font-size:clamp(31px,6vw,55px);letter-spacing:-.045em;margin:10px 0;color:#51
     voiceButton.disabled=!speechSupported;
     repeatButton.disabled=!speechSupported||!voiceOn||!soundOn;
     autoCheckbox.checked=autoVoice;autoCheckbox.disabled=!speechSupported||!voiceOn;
-    if(!speechSupported)voiceNote.textContent="Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
-    else{
+    if(!speechSupported){
+      voiceNote.textContent="Цей браузер не підтримує озвучення. Гра працює без голосових підказок.";
+      setVoiceState("🔇 Цей браузер не підтримує озвучення фраз.","error");
+    }else{
       const voices=window.speechSynthesis.getVoices(),ukVoice=getUkrainianVoice();
-      if(ukVoice)voiceNote.textContent="Український голос: "+ukVoice.name+". Натисни «Повторити підказку», щоб перевірити звучання.";
-      else if(voices.length)voiceNote.textContent="Українського голосу не знайдено. Для озвучення встанови український голос у Windows або Android.";
-      else voiceNote.textContent="Завантажуємо список голосів браузера. Натисни «Повторити підказку» трохи згодом.";
+      if(ukVoice){
+        voiceNote.textContent="Український голос: "+ukVoice.name+". Натисни «Повторити підказку», щоб перевірити звучання.";
+        if(!voiceOn||!soundOn)setVoiceState("🤫 Голосові підказки вимкнено.");
+        else if(!currentUtterance)setVoiceState("🗣️ Український голос доступний. Для перевірки натисни «Повторити підказку».","ok");
+      }else if(voices.length){
+        voiceNote.textContent="Знайдено голосів: "+voices.length+". Українських серед них: 0. Звуки кульок не залежать від озвучення тексту.";
+        setVoiceState("🔇 У Chrome немає українського голосу — тому чути лише лускання кульок.","error");
+      }else{
+        voiceNote.textContent="Chrome ще не повідомив про доступні голоси. Натисни «Повторити підказку» пізніше.";
+        setVoiceState("⌛ Список голосів Chrome поки порожній.");
+      }
     }
   }
   function resize(){
