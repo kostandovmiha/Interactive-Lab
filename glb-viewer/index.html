@@ -315,10 +315,10 @@ function inspectGLB(buffer){
 }
 async function openFile(file){
   if(!file)return;
+  const token=++activeLoad;
   hideError();
   if(!file.name.toLowerCase().endsWith('.glb')){showError('Потрібен файл у форматі .glb.');return;}
   if(file.size>200*1024*1024){showError('Ліміт файлу — 200 МБ.');return;}
-  const token=++activeLoad;
   setStatus('Читаю GLB…');
   try{
     const buffer=await file.arrayBuffer();
