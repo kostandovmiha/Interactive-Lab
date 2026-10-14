@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1020">
+<meta name="description" content="GLB Viewer — локальний перегляд 3D-моделей у Interactive Lab.">
+<title>GLB Viewer · Interactive Lab</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box}body{margin:0;color:#ebf3ff;background:#0b1020}button,input,select{font:inherit}
+a{color:#91ecdd;text-decoration:none}button{cursor:pointer;border:1px solid #405772;border-radius:10px;padding:10px 12px;color:#e9f6ff;background:#1c3048;font-size:13px;font-weight:650}
+button:hover{background:#2a4962}button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #8cf1df;outline-offset:3px}
+header{height:64px;padding:0 22px;background:#101a2a;border-bottom:1px solid #ffffff1b;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-size:14px;font-weight:850;letter-spacing:.07em;white-space:nowrap}.brand b{color:#74e8d8}header .subtitle{font-size:12px;color:#8fa5bf}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 318px;height:calc(100dvh - 64px);min-height:490px}
+.stage{position:relative;min-width:0;overflow:hidden;background:#111a2b}
+#viewport{position:absolute;inset:0;touch-action:none}#viewport canvas{display:block;width:100%;height:100%}
+.topline{position:absolute;left:22px;top:20px;pointer-events:none}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#75e5d4}
+h1{margin:8px 0 0;font-size:clamp(30px,4.4vw,52px);letter-spacing:-.06em;line-height:1}
+h1 span{color:#65dec9}.hint{position:absolute;left:22px;bottom:19px;color:#b1c2d6;font-size:12px;pointer-events:none}
+.status{position:absolute;top:21px;right:20px;color:#d6fdf5;background:#0e2032c9;border:1px solid #476c75;border-radius:999px;padding:9px 12px;font-size:11px;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;padding:24px;text-align:center}
+.empty-inner{padding:28px 32px;border:1px dashed #547588;border-radius:19px;background:#0d1c31cf;max-width:420px}
+.empty-icon{font-size:40px;color:#80e7d9}.empty h2{color:#f1f9ff;font-size:21px;margin:10px 0}.empty p{color:#a4bad0;line-height:1.6;margin:0;font-size:13px}
+.stage.dragging:after{content:"Відпусти GLB, щоб відкрити";position:absolute;inset:12px;z-index:6;display:grid;place-items:center;font-size:22px;font-weight:800;color:#b7ffed;border:2px dashed #7af0d3;border-radius:16px;background:#0d253de8;pointer-events:none}
+.alert{position:absolute;z-index:5;left:22px;right:22px;bottom:56px;border:1px solid #fd8e9a;border-radius:12px;padding:13px 16px;background:#462537;color:#fff2f3;font-size:13px;line-height:1.5}
+.sidebar{background:#111d2f;border-left:1px solid #ffffff17;padding:22px;overflow:auto}
+.section{padding-bottom:20px;border-bottom:1px solid #ffffff17;margin-bottom:20px}
+.section h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#94aac3;margin:0 0 16px}
+.primary{background:#61dcca;border-color:#61dcca;color:#092731}.primary:hover{background:#99f5e7}
+.choose{display:block;width:100%;padding:13px;text-align:center;border:1px solid #61dcca;background:#61dcca;color:#092731;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer}
+.choose:hover{background:#99f5e7}
+input[type=file]{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0}
+.tiny{font-size:11px;color:#8ca4c0;line-height:1.65;margin:11px 0 0}
+.filename{font-size:13px;color:#d9f2f2;overflow-wrap:anywhere;margin:12px 0 0;line-height:1.5}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.actions button{min-width:0}.actions .wide{grid-column:span 2}
+.check{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:13px}
+.check input{width:18px;height:18px;accent-color:#67e5d2}
+.field{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:15px 0 8px;font-size:13px}
+select{width:100%;padding:10px;background:#192c42;color:#f0f9ff;border:1px solid #405c76;border-radius:9px}
+input[type=range]{width:100%;accent-color:#66e1cd}
+.value{font-size:12px;color:#85ead9;font-variant-numeric:tabular-nums}
+.stats{margin:0;display:grid;grid-template-columns:90px 1fr;gap:9px 12px;font-size:12px;line-height:1.45}
+.stats dt{color:#8ea5c0}.stats dd{margin:0;text-align:right;overflow-wrap:anywhere;color:#dcecff;font-variant-numeric:tabular-nums}
+.animation-row{display:grid;grid-template-columns:1fr 85px;gap:9px;margin-top:10px}
+[hidden]{display:none!important}
+@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto}.stage{height:58dvh;min-height:340px}.sidebar{border-left:0;border-top:1px solid #ffffff18;display:grid;grid-template-columns:1fr 1fr;gap:16px}.section{margin:0}}
+@media(max-width:540px){header{padding:0 14px}header .subtitle{display:none}.sidebar{display:block;padding:17px}.section{margin:0 0 20px}.stage{height:51dvh;min-height:320px}.topline{top:16px;left:14px}.hint{left:14px;bottom:12px;font-size:11px}.status{top:14px;right:12px;max-width:45%}h1{font-size:30px}.empty-inner{padding:22px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head>
+<body>
+<header><a class="brand" href="../">✦ INTERACTIVE<b>LAB</b> / GLB VIEWER</a><span class="subtitle">Local GLB inspection · Three.js</span></header>
+<main class="layout">
+<section id="stage" class="stage" aria-label="3D-перегляд">
+  <div id="viewport"></div>
+  <div class="topline"><div class="eyebrow">3D · Materials · Animation</div><h1>GLB VIEWER<span>.</span></h1></div>
+  <div id="status" class="status" role="status">Очікування моделі</div>
+  <div id="empty" class="empty"><div class="empty-inner"><div class="empty-icon" aria-hidden="true">⬡</div><h2>Відкрий 3D-модель</h2><p>Вибери .glb праворуч або перетягни файл сюди. Модель залишиться на твоєму пристрої.</p></div></div>
+  <div id="error" class="alert" role="alert" hidden></div>
+  <div class="hint">Обертати — ліва кнопка · Зсувати — права · Масштаб — колесо</div>
+</section>
+<aside class="sidebar">
+  <section class="section"><h2>Завантажити модель</h2>
+    <label class="choose" for="file">↑ Обрати GLB-файл</label>
+    <input id="file" type="file" accept=".glb,model/gltf-binary">
+    <p id="filename" class="filename">Файл не вибрано</p>
+    <p class="tiny">Локальний перегляд без відправлення моделі на сервер. Максимум 200 МБ; потрібен інтернет для Three.js і декодерів.</p>
+  </section>
+  <section class="section"><h2>Камера</h2>
+    <div class="actions">
+      <button id="fit">Умістити модель</button><button id="iso">Ракурс 3/4</button>
+      <button id="front">Спереду (+Z)</button><button id="side">Збоку (+X)</button>
+      <button id="top">Зверху (+Y)</button><button id="png">Зберегти PNG</button>
+    </div>
+  </section>
+  <section class="section"><h2>Відображення</h2>
+    <label class="check" for="grid"><span>Сітка під моделлю</span><input id="grid" type="checkbox" checked></label>
+    <label class="check" for="axes"><span>Осі XYZ</span><input id="axes" type="checkbox"></label>
+    <label class="check" for="wire"><span>Каркас (wireframe)</span><input id="wire" type="checkbox"></label>
+    <label class="check" for="spin"><span>Автообертання</span><input id="spin" type="checkbox"></label>
+    <label for="background" class="field">Фон</label>
+    <select id="background"><option value="dark">Темний</option><option value="gray">Нейтральний сірий</option><option value="light">Світлий</option></select>
+    <div class="field"><label for="exposure">Експозиція</label><output class="value" id="exposureValue">1.0</output></div>
+    <input id="exposure" type="range" min="0.2" max="2.5" step="0.1" value="1">
+  </section>
+  <section class="section"><h2>Анімація</h2>
+    <label for="animation" class="tiny">Кліп</label>
+    <div class="animation-row"><select id="animation" disabled><option>Немає анімацій</option></select><button id="play" disabled>▶ Пуск</button></div>
+  </section>
+  <section class="section"><h2>Інформація</h2>
+    <dl class="stats">
+      <dt>Розмір файлу</dt><dd id="size">—</dd>
+      <dt>Габарити XYZ</dt><dd id="bounds">—</dd>
+      <dt>Меші</dt><dd id="meshes">—</dd>
+      <dt>Трикутники</dt><dd id="triangles">—</dd>
+      <dt>Матеріали</dt><dd id="materials">—</dd>
+      <dt>Анімації</dt><dd id="clips">—</dd>
+    </dl>
+    <p class="tiny">Вигляд матеріалів залежить від освітлення і tone mapping у Three.js; він може відрізнятися від V-Ray чи 3ds Max.</p>
+  </section>
+</aside>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const byId = id => document.getElementById(id);
+const stage = byId('stage');
+const viewport = byId('viewport');
+const status = byId('status');
+const errorBox = byId('error');
+const renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
+viewport.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#111a2b');
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
+camera.position.set(4, 3, 5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.065;
+controls.autoRotateSpeed = 1.1;
+controls.minDistance = 0.01;
+controls.maxDistance = 100000;
+scene.add(new THREE.HemisphereLight(0xdcefff,0x353b4b,0.85));
+const key = new THREE.DirectionalLight(0xffffff, 2.3);
+key.position.set(4, 9, 7);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xa7cbff, 1.1);
+fill.position.set(-6, 2, -7);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+const room = new RoomEnvironment();
+const environment = pmrem.fromScene(room);
+scene.environment = environment.texture;
+room.dispose();
+pmrem.dispose();
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/gltf/');
+const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/basis/').detectSupport(renderer);
+loader.setDRACOLoader(draco).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+
+let model = null, mixer = null, clips = [], currentAction = null;
+let activeLoad = 0, gridHelper = null, axisHelper = null, bounds = null;
+const originalWireframes = new Map();
+const clock = new THREE.Clock();
+const integer = new Intl.NumberFormat('uk-UA');
+const decimal = new Intl.NumberFormat('uk-UA', {maximumFractionDigits:2});
+
+function setStatus(message){status.textContent = message;}
+function showError(message){errorBox.textContent = message;errorBox.hidden = false;setStatus('Помилка завантаження');}
+function hideError(){errorBox.hidden = true;errorBox.textContent = '';}
+function resize(){
+  const w = Math.max(1, viewport.clientWidth), h = Math.max(1, viewport.clientHeight);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w,h,false);
+}
+new ResizeObserver(resize).observe(viewport);
+resize();
+
+function disposeModel(object){
+  if(!object)return;
+  const geometries = new Set(), materials = new Set(), textures = new Set();
+  object.traverse(node=>{
+    if(node.geometry)geometries.add(node.geometry);
+    if(node.material){
+      for(const material of (Array.isArray(node.material)?node.material:[node.material])){
+        materials.add(material);
+        for(const value of Object.values(material))if(value && value.isTexture)textures.add(value);
+      }
+    }
+  });
+  for(const g of geometries)g.dispose();
+  for(const m of materials)m.dispose();
+  for(const t of textures)t.dispose();
+}
+function removeCurrent(){
+  if(currentAction)currentAction.stop();
+  if(mixer){mixer.stopAllAction();mixer.uncacheRoot(model);}
+  mixer=null;currentAction=null;clips=[];
+  if(model){scene.remove(model);disposeModel(model);model=null;}
+  originalWireframes.clear();
+}
+function removeGrid(){
+  if(gridHelper){scene.remove(gridHelper);gridHelper.geometry.dispose();gridHelper.material.dispose();gridHelper=null;}
+}
+function refreshHelpers(){
+  removeGrid();
+  if(axisHelper){scene.remove(axisHelper);axisHelper.geometry.dispose();axisHelper.material.dispose();axisHelper=null;}
+  if(!bounds)return;
+  const sz = bounds.getSize(new THREE.Vector3());
+  const maxSize = Math.max(sz.x,sz.y,sz.z,0.01);
+  const span = maxSize * 2.5;
+  gridHelper = new THREE.GridHelper(span,20,0x54768b,0x354f64);
+  gridHelper.position.y = bounds.min.y - maxSize * 0.007;
+  gridHelper.material.transparent = true;gridHelper.material.opacity = 0.55;
+  gridHelper.visible = byId('grid').checked;scene.add(gridHelper);
+  axisHelper = new THREE.AxesHelper(maxSize * 0.4);
+  axisHelper.visible = byId('axes').checked;
+  scene.add(axisHelper);
+}
+function frameModel(direction = new THREE.Vector3(1,0.72,1.2)){
+  if(!bounds)return;
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov/2) * camera.aspect);
+  const radius = Math.max(sphere.radius,0.001);
+  const distance = radius / Math.sin(Math.min(verticalFov,horizontalFov)/2) * 1.22;
+  camera.position.copy(center).add(direction.clone().normalize().multiplyScalar(distance));
+  controls.target.copy(center);
+  camera.near = Math.max(distance / 10000,0.00001);
+  camera.far = Math.max(distance * 100, size.length() * 25);
+  camera.updateProjectionMatrix();
+  controls.minDistance = Math.max(radius * 0.015,0.00001);
+  controls.maxDistance = distance * 30;
+  controls.update();
+}
+function setCamera(direction){
+  if(!model)return;
+  const distance = camera.position.distanceTo(controls.target);
+  camera.position.copy(controls.target).add(direction.normalize().multiplyScalar(distance));
+  controls.update();
+}
+function updateWireframe(){
+  if(!model)return;
+  const enabled = byId('wire').checked;
+  model.traverse(node=>{
+    if(!node.material)return;
+    for(const m of (Array.isArray(node.material)?node.material:[node.material])){
+      if(!originalWireframes.has(m))originalWireframes.set(m,Boolean(m.wireframe));
+      if('wireframe' in m)m.wireframe = enabled || originalWireframes.get(m);
+    }
+  });
+}
+function playClip(index){
+  if(!mixer || !clips[index])return;
+  if(currentAction)currentAction.stop();
+  currentAction = mixer.clipAction(clips[index]);
+  currentAction.reset().play();
+  mixer.timeScale = 1;
+  byId('play').textContent = '❚❚ Пауза';
+}
+function setupAnimation(gltf){
+  clips = gltf.animations || [];
+  const select=byId('animation'), play=byId('play');
+  select.replaceChildren();
+  select.disabled = !clips.length;
+  play.disabled = !clips.length;
+  if(!clips.length){
+    select.add(new Option('Немає анімацій',''));
+    play.textContent = '▶ Пуск';
+    return;
+  }
+  mixer = new THREE.AnimationMixer(model);
+  clips.forEach((clip,i)=>select.add(new Option(clip.name || ('Анімація '+(i+1)),String(i))));
+  playClip(0);
+}
+function updateStats(gltf,file){
+  const size = bounds.getSize(new THREE.Vector3());
+  let meshes = 0, tris = 0;
+  const mats=new Set();
+  model.traverse(node=>{
+    if(!node.isMesh)return;
+    meshes++;
+    const geo=node.geometry;
+    if(geo){
+      const vertices=geo.index?geo.index.count:(geo.getAttribute('position')?.count||0);
+      tris+=Math.floor(vertices/3)*(node.isInstancedMesh?node.count:1);
+    }
+    if(node.material)for(const m of (Array.isArray(node.material)?node.material:[node.material]))mats.add(m);
+  });
+  byId('filename').textContent = file.name;
+  byId('size').textContent = decimal.format(file.size/1024/1024) + ' МБ';
+  byId('bounds').textContent = [size.x,size.y,size.z].map(n=>decimal.format(n)).join(' × ');
+  byId('meshes').textContent = integer.format(meshes);
+  byId('triangles').textContent = integer.format(tris);
+  byId('materials').textContent = integer.format(mats.size);
+  byId('clips').textContent = integer.format(clips.length);
+}
+// GLB files with external image or buffer links are intentionally rejected:
+// a local model must never trigger arbitrary network fetches.
+function inspectGLB(buffer){
+  if(buffer.byteLength < 20)throw Error('Файл надто короткий для GLB.');
+  const view=new DataView(buffer);
+  if(view.getUint32(0,true)!==0x46546c67 || view.getUint32(4,true)!==2)
+    throw Error('Це не GLB версії 2.0.');
+  if(view.getUint32(8,true)!==buffer.byteLength)throw Error('Некоректна довжина GLB.');
+  const len=view.getUint32(12,true);
+  if(view.getUint32(16,true)!==0x4e4f534a || len<2 || len>buffer.byteLength-20)
+    throw Error('Не знайдено коректний JSON-блок GLB.');
+  const json=JSON.parse(new TextDecoder().decode(new Uint8Array(buffer,20,len)).replace(/\u0000+$/,''));
+  for(const item of [...(json.buffers||[]),...(json.images||[])]){
+    if(item.uri && !item.uri.startsWith('data:'))
+      throw Error('GLB містить зовнішні файли/URL. Експортуй модель із вбудованими текстурами.');
+  }
+  return json;
+}
+async function openFile(file){
+  if(!file)return;
+  const token=++activeLoad;
+  hideError();
+  if(!file.name.toLowerCase().endsWith('.glb')){showError('Потрібен файл у форматі .glb.');return;}
+  if(file.size>200*1024*1024){showError('Ліміт файлу — 200 МБ.');return;}
+  setStatus('Читаю GLB…');
+  try{
+    const buffer=await file.arrayBuffer();
+    if(token!==activeLoad)return;
+    inspectGLB(buffer);
+    setStatus('Обробляю геометрію й текстури…');
+    const gltf=await loader.parseAsync(buffer,'');
+    if(token!==activeLoad){disposeModel(gltf.scene);return;}
+    if(!gltf.scene)throw Error('GLB не містить сцени.');
+    const nextBounds=new THREE.Box3().setFromObject(gltf.scene);
+    if(nextBounds.isEmpty())throw Error('У файлі немає видимої геометрії.');
+    removeCurrent();
+    model=gltf.scene;bounds=nextBounds;
+    scene.add(model);
+    setupAnimation(gltf);
+    updateStats(gltf,file);
+    refreshHelpers();
+    updateWireframe();
+    frameModel();
+    byId('empty').hidden = true;
+    setStatus('GLB відкрито');
+  }catch(error){
+    if(token!==activeLoad)return;
+    showError('Не вдалося відкрити файл: '+(error?.message||String(error)));
+  }
+}
+byId('file').addEventListener('change',event=>{
+  openFile(event.target.files?.[0]);
+  event.target.value='';
+});
+for(const name of ['dragenter','dragover'])stage.addEventListener(name,e=>{
+  e.preventDefault();stage.classList.add('dragging');
+});
+stage.addEventListener('dragleave',e=>{
+  e.preventDefault();
+  if(!stage.contains(e.relatedTarget))stage.classList.remove('dragging');
+});
+stage.addEventListener('drop',e=>{
+  e.preventDefault();stage.classList.remove('dragging');openFile(e.dataTransfer?.files?.[0]);
+});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>e.preventDefault());
+byId('fit').addEventListener('click',()=>frameModel());
+byId('iso').addEventListener('click',()=>setCamera(new THREE.Vector3(1,0.72,1.2)));
+byId('front').addEventListener('click',()=>setCamera(new THREE.Vector3(0,0,1)));
+byId('side').addEventListener('click',()=>setCamera(new THREE.Vector3(1,0,0)));
+byId('top').addEventListener('click',()=>setCamera(new THREE.Vector3(0,1,0)));
+byId('grid').addEventListener('change',e=>{if(gridHelper)gridHelper.visible=e.target.checked;});
+byId('axes').addEventListener('change',e=>{if(axisHelper)axisHelper.visible=e.target.checked;});
+byId('wire').addEventListener('change',updateWireframe);
+byId('spin').addEventListener('change',e=>{controls.autoRotate=e.target.checked;});
+const backgrounds={dark:'#111a2b',gray:'#858991',light:'#e6ebf0'};
+byId('background').addEventListener('change',e=>scene.background.set(backgrounds[e.target.value]));
+byId('exposure').addEventListener('input',e=>{
+  renderer.toneMappingExposure=Number(e.target.value);
+  byId('exposureValue').textContent=Number(e.target.value).toFixed(1);
+});
+byId('animation').addEventListener('change',e=>playClip(Number(e.target.value)));
+byId('play').addEventListener('click',()=>{
+  if(!mixer || !currentAction)return;
+  const paused=mixer.timeScale===0;
+  mixer.timeScale=paused?1:0;
+  byId('play').textContent=paused?'❚❚ Пауза':'▶ Пуск';
+});
+byId('png').addEventListener('click',()=>{
+  if(!model)return;
+  renderer.render(scene,camera);
+  const a=document.createElement('a');
+  a.download='interactive-lab-glb.png';
+  a.href=renderer.domElement.toDataURL('image/png');
+  a.click();
+});
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  if(mixer)mixer.update(dt);
+  controls.update();
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

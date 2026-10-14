@@ -1,0 +1,23 @@
+name: GLB Viewer checks
+on:
+  push:
+    paths:
+      - 'glb-viewer/**'
+      - 'index.html'
+      - 'scripts/validate_glb_viewer.mjs'
+      - '.github/workflows/glb-viewer-check.yml'
+  pull_request:
+    paths:
+      - 'glb-viewer/**'
+      - 'index.html'
+      - 'scripts/validate_glb_viewer.mjs'
+      - '.github/workflows/glb-viewer-check.yml'
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/validate_glb_viewer.mjs
