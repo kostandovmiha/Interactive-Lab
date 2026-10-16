@@ -1,0 +1,11 @@
+# Private assets belong in Supabase Storage, never in this public checkout.
+.env
+.env.*
+private/
+models/
+*.glb
+*.gltf
+*.bin
+*.blend
+*.max
+__pycache__/

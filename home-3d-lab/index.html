@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1020"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'sha256-DDJqjFTC1p6G35J1CAYs61r6NjzSah4n8lrFH3AORlg='; style-src 'self'; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net; img-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Home 3D Lab · Interactive Lab</title>
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm"}}</script>
+</head>
+<body>
+<header><a class="brand" href="../">✦ INTERACTIVE<span>LAB</span></a><span class="private">Приватний простір</span><button id="login" disabled>Увійти через Google</button><button id="logout" hidden>Вийти</button></header>
+<main>
+<section class="viewport" aria-label="Тривимірний будинок">
+<div id="viewer"></div>
+<div class="heading"><p>Дослідження простору · MVP</p><h1>Home 3D Lab<span>.</span></h1></div>
+<div class="gate" id="gate"><div><span class="lock" aria-hidden="true">⌂</span><h2 id="gate-title">Перевіряємо налаштування…</h2><p id="gate-detail">Приватні моделі доступні лише користувачам із дозволом.</p></div></div>
+<div id="loading" role="status" hidden><progress id="progress" max="100"></progress><span id="load-text">Завантаження…</span></div>
+<p id="scene-label" class="scene-label" hidden></p>
+<button id="enter-walk" class="enter-walk" hidden>Натисни для прогулянки</button>
+<p class="hint" id="hint">Обертання — перетягування · Масштаб — колесо · Панорама — права кнопка</p>
+</section>
+<aside>
+<section><h2>Доступ</h2><p id="auth-state" role="status" aria-live="polite">Перевірка…</p><p class="muted">Вхід у Google ще не надає доступу: потрібен дозвіл власника.</p></section>
+<section><h2>Будинок</h2><label for="model">Модель</label><select id="model" disabled><option value="demo">Вигаданий демобудинок</option></select><button id="load-model" disabled>Відкрити модель</button><p class="muted">Демо — умовний будинок із трьома кімнатами, не план реального житла.</p></section>
+<section><h2>Навігація</h2><label for="mode">Режим камери</label><select id="mode" disabled><option value="orbit">Огляд навколо</option><option value="walk">Прогулянка</option></select><button id="reset" disabled>Повернути камеру</button><label for="speed">Швидкість: <output id="speed-value">2</output> м/с</label><input id="speed" type="range" min="0.5" max="5" step="0.5" value="2" disabled><p class="muted">WASD — рух · Миша — погляд · Esc — звільнити курсор. Висота очей — 1,65 м. Прогулянка розрахована на комп’ютер.</p></section>
+<section><h2>Видимість</h2><div id="groups"><p class="muted">Спочатку відкрий модель.</p></div><p class="muted">Приховані стіни й підлоги зберігають колізії.</p></section>
+<p id="error" class="error" role="alert" hidden></p><p class="muted">Масштаб сцени: 1 одиниця = 1 метр.</p>
+</aside>
+</main>
+<noscript>Для входу й перегляду потрібен JavaScript. Доступ до приватних файлів залишається закритим.</noscript>
+<script type="module" src="./js/app.js"></script>
+</body></html>
