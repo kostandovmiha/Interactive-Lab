@@ -19,7 +19,7 @@ export class Auth {
   }
   async models() {
     const { data, error } = await this.client.from('home3d_models')
-      .select('id,label,storage_path,settings').eq('enabled', true).order('label');
+      .select('id,label,settings').eq('enabled', true).order('label');
     if (error) throw new Error('Не вдалося отримати список приватних моделей.');
     return data || [];
   }

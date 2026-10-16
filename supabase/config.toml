@@ -1,0 +1,5 @@
+# The gateway's legacy JWT verifier does not support every Auth signing-key
+# configuration. The function independently validates Bearer JWTs via Auth
+# /user and performs authorization on EVERY POST. Never remove those checks.
+[functions.home3d-download]
+verify_jwt = false
