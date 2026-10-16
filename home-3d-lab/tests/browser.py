@@ -42,6 +42,8 @@ try:
  with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('HOME3D_CHROMIUM') or shutil.which('chromium'), headless=True, args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
     page = browser.new_page(viewport={'width':1280,'height':900})
+    # Missing-config coverage must not depend on deployment config being empty.
+    page.route('**/home-3d-lab/config.js', lambda route: route.fulfill(body='export default {};', content_type='text/javascript'))
     errors = []
     page.on('pageerror',lambda e: errors.append(str(e)))
     page.goto(base+'home-3d-lab/',wait_until='networkidle')

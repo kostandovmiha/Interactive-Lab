@@ -20,6 +20,10 @@
 
 Supabase SQL Editor відхилив `ALTER TABLE storage.objects` із `must be owner of table objects`. Прибрано непотрібну зміну службової таблиці: RLS вмикає платформа, а міграція перевіряє його наявність до створення об’єктів застосунку. Перевірки політик залишено. Додано regression check, що не допускає managed-table ALTER, та PostgreSQL-кейс для відсутнього Storage RLS: установка закривається без частково створених таблиць/bucket. Адміністративні policy grants Supabase відрізняються від звичайного PostgreSQL ownership; PGlite їх не емулює. Успішне виконання виправленої міграції у живому Supabase ще має підтвердити власник.
 
+## Публічна конфігурація розгортання
+
+До `config.js` додано URL проєкту та publishable key, надані власником. Порожній шаблон збережено у `config.example.js`. Власник повідомив про успішне виконання виправленої міграції та налаштування Google provider/redirects. Живий Google-вхід і Storage HTTP ще потребують перевірки; запити Cloud до домену Supabase наразі блокуються мережевим проксі. Синтаксична валідація ключа не підтверджує, що він приймається сервером. Тест відсутньої конфігурації тепер явно підставляє порожній fixture, не залежачи від production settings.
+
 ## Потребує власника
 
 Створити Supabase-проєкт, застосувати міграцію, увімкнути Google provider із secret тільки в Dashboard, налаштувати exact callback/app redirects, заповнити public config і дозволені UUID. Після цього виконати всі direct Storage HTTP та live OAuth кейси в ACCEPTANCE.md з вигаданим файлом. Реальну модель завантажувати лише в перевірений private bucket, не в репозиторій. Ні живу production authentication, ні інтеграційний HTTP захист у неналаштованому проєкті тут не заявлено працюючими.
