@@ -103,7 +103,7 @@ try:
         context=browser.new_context(viewport={'width':1280,'height':900})
         mock(context,allowed,signed)
         page=context.new_page(); page.on('pageerror',lambda e: errors.append(str(e)))
-        storage_requests=[];page.on('request',lambda r: storage_requests.append(r.url) if '/storage/v1/' in r.url else None)
+        storage_requests=[];page.on('request',lambda r: storage_requests.append(r.url) if ('/storage/v1/' in r.url or '/functions/v1/' in r.url) else None)
         page.goto(base+'home-3d-lab/',wait_until='networkidle')
         if not allowed:
             assert page.locator('#load-model').is_disabled() and page.locator('canvas').count()==0
@@ -132,7 +132,7 @@ try:
             assert page.locator('#load-model').is_disabled() and not page.locator('#gate').is_hidden()
             print('PASS: mocked allowed viewer, orbit, visibility, pointer lock/WASD/Esc, logout cleanup',flush=True)
         context.close()
-    # Complete private loading path with authenticated Storage fixture responses.
+    # Complete private loading path with authenticated download function fixtures.
     import base64
     catalog=[{'id':'33333333-3333-4333-8333-333333333333','label':'Тестовий приватний GLB','storage_path':'test/fixture.glb','settings':{}}]
     for status in [200,403]:
@@ -142,9 +142,11 @@ try:
             requests.append(route.request)
             assert route.request.headers['authorization']=='Bearer test-token'
             assert route.request.headers['apikey']=='sb_publishable_TESTONLY'
-            assert '/object/authenticated/home-3d-private/' in route.request.url
+            assert route.request.url.endswith('/functions/v1/home3d-download')
+            assert route.request.method=='POST'
+            assert route.request.post_data_json=={'model_id':catalog[0]['id']}
             route.fulfill(status=status,body=base64.b64decode(result['glbBase64']) if status==200 else b'Forbidden',content_type='model/gltf-binary')
-        context.route('**/storage/v1/**',storage)
+        context.route('**/functions/v1/home3d-download',storage)
         page=context.new_page();page.goto(base+'home-3d-lab/',wait_until='networkidle')
         page.select_option('#model',catalog[0]['id']);page.click('#load-model')
         if status==200:
@@ -155,13 +157,13 @@ try:
             page.wait_for_selector('#error',state='visible');assert page.locator('#load-model').is_disabled()
             assert page.locator('canvas').count()==0
         assert len(requests)==1
-        print('PASS: mocked authenticated GLB fetch / fail-closed Storage response',status,flush=True)
+        print('PASS: mocked authenticated GLB fetch / fail-closed download function response',status,flush=True)
         context.close()
     # Logout while a Storage request is in flight must prevent later rendering.
     context=browser.new_context();mock(context,models=catalog);held=[]
-    context.route('**/storage/v1/**',lambda route:held.append(route))
+    context.route('**/functions/v1/home3d-download',lambda route:held.append(route))
     page=context.new_page();page.goto(base+'home-3d-lab/',wait_until='networkidle');page.select_option('#model',catalog[0]['id'])
-    with page.expect_request('**/storage/v1/**'):page.click('#load-model')
+    with page.expect_request('**/functions/v1/home3d-download'):page.click('#load-model')
     page.click('#logout');assert page.locator('#load-model').is_disabled();assert page.locator('canvas').count()==0
     for route in held: route.abort()
     context.close();print('PASS: logout cancels in-flight private download',flush=True)
