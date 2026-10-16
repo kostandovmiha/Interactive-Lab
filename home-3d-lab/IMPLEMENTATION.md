@@ -16,6 +16,10 @@
 
 Додано PR workflow `home-3d-checks.yml` для повторення core/RLS/browser перевірок. Запуск у GitHub Actions — окремий результат; локальний pass не означає, що CI вже завершено.
 
+## Виправлення під час живого налаштування
+
+Supabase SQL Editor відхилив `ALTER TABLE storage.objects` із `must be owner of table objects`. Прибрано непотрібну зміну службової таблиці: RLS вмикає платформа, а міграція перевіряє його наявність до створення об’єктів застосунку. Перевірки політик залишено. Додано regression check, що не допускає managed-table ALTER, та PostgreSQL-кейс для відсутнього Storage RLS: установка закривається без частково створених таблиць/bucket. Адміністративні policy grants Supabase відрізняються від звичайного PostgreSQL ownership; PGlite їх не емулює. Успішне виконання виправленої міграції у живому Supabase ще має підтвердити власник.
+
 ## Потребує власника
 
 Створити Supabase-проєкт, застосувати міграцію, увімкнути Google provider із secret тільки в Dashboard, налаштувати exact callback/app redirects, заповнити public config і дозволені UUID. Після цього виконати всі direct Storage HTTP та live OAuth кейси в ACCEPTANCE.md з вигаданим файлом. Реальну модель завантажувати лише в перевірений private bucket, не в репозиторій. Ні живу production authentication, ні інтеграційний HTTP захист у неналаштованому проєкті тут не заявлено працюючими.

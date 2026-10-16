@@ -1,6 +1,20 @@
 -- Run using the Supabase SQL editor / migration owner, never from the browser.
 -- UUIDs and model metadata are administered by the project owner only.
 begin;
+-- Supabase owns storage.objects and enables its RLS. Dashboard roles may manage
+-- policies through supautils without permission to ALTER the managed table.
+-- Fail closed if that platform prerequisite is missing; never change ownership.
+do $home3d_storage_rls$
+begin
+  if not exists (
+    select 1 from pg_catalog.pg_class
+    where oid = pg_catalog.to_regclass('storage.objects') and relrowsecurity
+  ) then
+    raise exception 'Supabase Storage RLS must already be enabled on storage.objects. Check the project Storage setup before retrying.';
+  end if;
+end;
+$home3d_storage_rls$;
+
 create table public.home3d_allowed_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
   active boolean not null default true,
@@ -48,8 +62,6 @@ values ('home-3d-private', 'home-3d-private', false, 104857600,
   array['model/gltf-binary', 'application/octet-stream'])
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
-
-alter table storage.objects enable row level security;
 
 -- This permissive policy supplies SELECT only, after server-side UUID checks.
 create policy home3d_download_allowed on storage.objects
