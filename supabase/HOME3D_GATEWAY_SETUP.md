@@ -4,6 +4,12 @@
 
 Новий потік: **browser POST + user JWT → Edge Function → Auth + allowlist + enabled model → server-only Storage → no-store POST response**. Новий vault не мав успішних browser downloads і за RLS їх не допускає. Жодних service-role keys у Pages, browser helpers чи GitHub secrets для цього не потрібно.
 
+## Стан цього розгортання на 2026-10-23
+
+Кроки 1–3 виконано через захищений Management API: міграція застосована, вигаданий файл у private vault, `home3d-download` ACTIVE version 1. API записав міграцію як version `20261023133702`, name `home3d_download_gateway_202610160001`; вихідний SQL — `202610160001_home3d_download_gateway.sql`. **Не виконувати цей SQL повторно** на цьому проєкті. Первинний SQL раніше застосовувався вручну; перед майбутнім CLI `db push` потрібно узгодити його baseline/history з локальними файлами, не застосовувати створення тих самих таблиць/політик повторно.
+
+24 живі backend HTTP-перевірки пройдено з тимчасовою Auth сесією; тимчасові записи видалено. Старий вигаданий object видалено, попередньо завантажена серверна URL після інвалідації більше не видає GLB. Очікуються review/merge PR №5, Pages update та перевірки Google-сесії власника за кроком 5. [Санітизований звіт](../home-3d-lab/tests/live-acceptance-2026-10-23.json).
+
 ## 1. Міграція, без повтору першої
 
 Якщо первинну `202610120001_home3d_private.sql` уже виконано, у Supabase SQL Editor як `postgres` застосувати **тільки** `migrations/202610160001_home3d_download_gateway.sql` цілком. Для нового проєкту — обидві за порядком. Скрипт не видаляє/переміщує files і не змінює службову таблицю через ALTER.

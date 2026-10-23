@@ -23,10 +23,18 @@
 
 CI повторює core/gateway/PostgreSQL/browser перевірки. Локальний pass не є результатом CI або живого Supabase deployment.
 
+## Живе налаштування 2026-10-23
+
+Через захищене підключення Management API підтверджено правильний healthy проєкт; застосовано другу міграцію (API history version `20261023133702`, name `home3d_download_gateway_202610160001`). Новий vault приватний, чотири RESTRICTIVE guards перевірено. Лише вигаданий fixture (44 660 bytes, відома SHA-256) перенесено; Edge Function version 1 розгорнуто з reviewed source `27c227a`.
+
+Пройдено **24 живі HTTP-перевірки**: anonymous/forged JWT denied, чинний non-allowlisted session denied, allowed POST повернув точні fixture bytes/no-store, прямі Storage GET/sign/upload і self-allowlisting denied навіть для allowed user, після відкликання три однакові POST дали 403 без GLB, disabled/unknown model і зайвий client path відхилено. Тимчасовий користувач створений через Auth admin, email/password session підтверджена Auth `/user`; Google OAuth у браузері власника тут не виконувався. User/allowlist fixture видалені, enabled тестової моделі відновлено, права існуючого власника не змінено.
+
+Старий вигаданий object видалено через Storage API після перевірки vault copy. Спочатку cached server URL ще повертала GLB; після інвалідації та сама попередньо завантажена URL, uncached URL і public URL дали 400 без GLB. Original owner Google JWT/browser cache недоступні Cloud і залишаються ручною перевіркою. [Санітизований звіт](tests/live-acceptance-2026-10-23.json) не містить токенів, user IDs, email або bytes.
+
 ## Залишилося власнику
 
-Застосувати другу міграцію; завантажити тільки вигаданий GLB у новий vault; розгорнути function (обидва файли); після review оновити Pages із PR; видалити старий демофайл через Storage Dashboard і перевірити стару URL після інвалідації CDN. Повторити same-POST warm/revoke tests, anonymous/denied/allowed direct GET/signing rejection і model disable за [ACCEPTANCE](ACCEPTANCE.md). Точні кроки — [HOME3D_GATEWAY_SETUP](../supabase/HOME3D_GATEWAY_SETUP.md).
+Переглянути й злити PR №5; дочекатися Pages deployment і перевірити новий viewer зі своїм Google-акаунтом, включно зі старою cached URL. Другу міграцію повторно виконувати не потрібно: Supabase backend уже налаштовано. Повний план — [ACCEPTANCE](ACCEPTANCE.md); інструкція нової інсталяції — [HOME3D_GATEWAY_SETUP](../supabase/HOME3D_GATEWAY_SETUP.md).
 
-Новий live security acceptance **не виконаний**, функцію з Cloud не розгорнуто, PR автоматично не зливається. Живий провал старого direct GET залишається відкритим до завершення переходу й перевірки старої URL. Справжня модель не потрапляла до репозиторію чи цього deployment.
+PR автоматично не зливався, чинний Pages frontend ще не оновлено. Новий backend acceptance виконано з тимчасовою Auth сесією; production Google UI acceptance і original-owner cache check ще не завершено. Справжні assets не завантажувалися.
 
 Наступна віха після security acceptance: імпорт справжнього приватного GLB зі спрощеними collision meshes. Редактор меблів, stairs/step-up, touch walkthrough і Solar Roof Lab залишаються поза цією зміною.

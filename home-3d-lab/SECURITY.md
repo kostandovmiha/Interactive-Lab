@@ -1,6 +1,6 @@
 # Security checklist
 
-**Поточний стан:** власник підтвердив провал старого direct Storage GET після відкликання дозволу, навіть із backend `no-store`. Нова серверна видача перевірена локально; її живий deployment/HTTP acceptance ще не виконано. Реальну модель не завантажувати до завершення переходу.
+**Поточний стан:** власник підтвердив провал старого direct Storage GET після відкликання дозволу, навіть із backend `no-store`. 2026-10-23 нову серверну видачу розгорнуто: пройдено 24 живі HTTP-перевірки з тимчасовою email/password Supabase Auth сесією та 3 перевірки старої URL після інвалідації. Перевірка нового Pages UI з Google-сесією власника та його старої кешованої URL ще очікується. Реальну модель не завантажувати до завершення переходу.
 
 Перед production власник має перевірити:
 
@@ -20,6 +20,6 @@
 - [ ] Browser roles не можуть змінювати allowlist/catalog або vault. Allowlist UUID перевіряє власник; client email matching не використовується.
 - [ ] Dashboard обмежено довіреними адміністраторами з MFA; усі програми того ж origin і JS dependencies довірені.
 
-Перевірено локально: PostgreSQL RLS двох міграцій, широкі сторонні політики, заборона reads/writes browser roles і server read; серверний handler на керованих HTTP-відповідях, включно з кешованим upstream GLB та відкликаним UUID; frontend POST construction/fail-closed, rendering/navigation/collisions/logout. Cloud не мав живого Auth/Storage доступу й не розгортав функцію.
+Перевірено локально: PostgreSQL RLS двох міграцій, широкі сторонні політики, заборона reads/writes browser roles і server read; серверний handler на керованих HTTP-відповідях, включно з кешованим upstream GLB та відкликаним UUID; frontend POST construction/fail-closed, rendering/navigation/collisions/logout. Окремо 2026-10-23 Cloud застосував другу міграцію, розгорнув функцію й виконав [живі перевірки](tests/live-acceptance-2026-10-23.json). Тимчасовий auth user/allowlist видалено, existing owner permissions не змінено. Ці перевірки не виконували Google OAuth у браузері власника.
 
 Кеш upstream Storage не є authorization boundary нового viewer: доступ до нього має тільки сервер, а він не кешує дозвіл чи власну POST response. Дозволений користувач може зберегти отримані bytes; відкликання не видаляє копії й не перериває гарантовано вже початий дозволений потік. Це контроль нових запитів, не DRM. Довірений адміністратор із service key може обійти RLS і відповідає за assets.
