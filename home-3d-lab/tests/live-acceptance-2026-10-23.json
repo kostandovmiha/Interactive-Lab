@@ -1,0 +1,193 @@
+{
+  "verified_on": "2026-10-23",
+  "scope": "Live Supabase backend with fictional-house.glb and a temporary email/password Supabase Auth session; no real house assets.",
+  "function": {
+    "slug": "home3d-download",
+    "version": 1,
+    "source_commit": "27c227a47cb2355bdcd055fb2f6b9e69a08a5ab6"
+  },
+  "migration": {
+    "source": "supabase/migrations/202610160001_home3d_download_gateway.sql",
+    "management_api_version": "20261023133702",
+    "name": "home3d_download_gateway_202610160001"
+  },
+  "live_http_checks_passed": 24,
+  "checks": [
+    {
+      "check": "function_anonymous",
+      "http": 401,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "session_required"
+    },
+    {
+      "check": "function_forged_jwt",
+      "http": 401,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "session_not_verified"
+    },
+    {
+      "check": "function_get_disallowed",
+      "http": 405,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "post_required"
+    },
+    {
+      "check": "vault_anonymous",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "vault_public_url",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "test_session_validated",
+      "http": 200,
+      "glb_received": false
+    },
+    {
+      "check": "non_allowlisted_rpc",
+      "http": 200,
+      "glb_received": false
+    },
+    {
+      "check": "function_valid_jwt_not_allowlisted",
+      "http": 403,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "access_denied"
+    },
+    {
+      "check": "browser_self_allowlisting_denied",
+      "http": 403,
+      "glb_received": false
+    },
+    {
+      "check": "vault_denied_user",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "allowed_rpc",
+      "http": 200,
+      "glb_received": false
+    },
+    {
+      "check": "function_allowed_download",
+      "http": 200,
+      "glb_received": true,
+      "fixture_sha256_matches": true,
+      "no_store": true
+    },
+    {
+      "check": "vault_allowed_user_still_denied",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "vault_allowed_user_nonce_still_denied",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "vault_signing_denied",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "vault_browser_upload_denied",
+      "http": 400,
+      "glb_received": false
+    },
+    {
+      "check": "revoked_rpc_before",
+      "http": 200,
+      "glb_received": false
+    },
+    {
+      "check": "same_post_after_revocation_1",
+      "http": 403,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "access_denied"
+    },
+    {
+      "check": "same_post_after_revocation_2",
+      "http": 403,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "access_denied"
+    },
+    {
+      "check": "same_post_after_revocation_3",
+      "http": 403,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "access_denied"
+    },
+    {
+      "check": "revoked_rpc_after",
+      "http": 200,
+      "glb_received": false
+    },
+    {
+      "check": "function_disabled_model_denied",
+      "http": 404,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "model_unavailable"
+    },
+    {
+      "check": "function_unknown_model_denied",
+      "http": 404,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "model_unavailable"
+    },
+    {
+      "check": "function_rejects_client_path",
+      "http": 400,
+      "glb_received": false,
+      "no_store": true,
+      "error_code": "invalid_model_id"
+    }
+  ],
+  "legacy_retirement": {
+    "old_object_deleted": true,
+    "vault_copy_hash_verified": true,
+    "old_warmed_server_url_invalidated": true,
+    "checks": [
+      {
+        "check": "retired_exact_warmed_server_url",
+        "http": 400,
+        "glb_received": false
+      },
+      {
+        "check": "retired_uncached_server_url",
+        "http": 400,
+        "glb_received": false
+      },
+      {
+        "check": "retired_public_url",
+        "http": 400,
+        "glb_received": false
+      }
+    ]
+  },
+  "cleanup": {
+    "temporary_auth_user_removed": true,
+    "temporary_allowlist_entry_removed": true,
+    "test_model_enabled_restored": true,
+    "existing_owner_permissions_changed": false,
+    "leftover_test_uploads": 0
+  },
+  "not_yet_verified": [
+    "New Pages frontend with owner Google session after PR merge",
+    "Retired URL using the original owner Google JWT/browser cache"
+  ],
+  "github_pages_update_pending": true
+}

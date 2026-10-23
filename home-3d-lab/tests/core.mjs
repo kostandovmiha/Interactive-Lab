@@ -5,6 +5,7 @@ import { validateGLB, downloadModel } from '../js/assets.js';
 import { Auth } from '../js/auth.js';
 
 const config = { supabaseUrl: 'https://testproject.supabase.co', supabasePublishableKey: 'sb_publishable_TESTONLY', maxModelBytes: 4096, groups: { floors: ['Floor'] } };
+const model = { id: '33333333-3333-4333-8333-333333333333' };
 const authorization = { userId: 'allowed-uuid', token: 'test-token' };
 function glb(document = { asset: { version: '2.0' }, buffers: [] }) {
   const text = JSON.stringify(document); const padded = text.padEnd(Math.ceil(text.length / 4) * 4, ' ');
@@ -32,22 +33,24 @@ test('GLB gate rejects external buffers, textures and unsupported required codec
 });
 test('no authentication means no Storage request', async () => {
   let calls = 0;
-  await assert.rejects(downloadModel({ config, model: {storage_path:'home.glb'}, fetchImpl: async () => { calls++; } }));
+  await assert.rejects(downloadModel({ config, model, fetchImpl: async () => { calls++; } }));
   assert.equal(calls, 0);
 });
-test('authenticated object endpoint carries JWT, never uses a public/signed URL', async () => {
+test('authorized download POST carries only model ID and JWT; never a Storage/signed GET', async () => {
   let request;
-  const buffer = await downloadModel({ config, authorization, model: {storage_path:'models/fictional house.glb'}, fetchImpl: async (url, init) => { request = {url,init}; return new Response(glb()); } });
-  assert.match(request.url, /\/object\/authenticated\/home-3d-private\/models\/fictional%20house.glb$/);
+  const buffer = await downloadModel({ config, authorization, model, fetchImpl: async (url, init) => { request = {url,init}; return new Response(glb()); } });
+  assert.equal(request.url, 'https://testproject.supabase.co/functions/v1/home3d-download');
+  assert.equal(request.init.method, 'POST');
+  assert.deepEqual(JSON.parse(request.init.body), {model_id: model.id});
   assert.equal(request.init.headers.Authorization, 'Bearer test-token');
   assert.equal(request.init.cache, 'no-store'); assert.equal(request.init.redirect, 'error');
   validateGLB(buffer);
 });
-test('failed Storage responses, traversal and oversized bodies never reach the GLB parser', async () => {
-  for (const status of [401,403,404,500]) await assert.rejects(downloadModel({config,authorization,model:{storage_path:'home.glb'},fetchImpl:async()=>new Response('',{status})}));
-  for (const path of ['../home.glb','/home.glb','folder/../home.glb','home.glb?x','folder\\home.glb']) await assert.rejects(downloadModel({config,authorization,model:{storage_path:path}}));
-  await assert.rejects(downloadModel({config,authorization,model:{storage_path:'home.glb'},fetchImpl:async()=>new Response(new Uint8Array(5000))}));
-  await assert.rejects(downloadModel({config,authorization,model:{storage_path:'home.glb'},fetchImpl:async()=>new Response('',{headers:{'content-length':'5000'}})}));
+test('failed gateway responses, invalid IDs and oversized bodies never reach the GLB parser', async () => {
+  for (const status of [401,403,404,500]) await assert.rejects(downloadModel({config,authorization,model,fetchImpl:async()=>new Response('',{status})}));
+  for (const id of ['', '../home.glb', 'folder/../home.glb', 'home.glb?x']) await assert.rejects(downloadModel({config,authorization,model:{id}}));
+  await assert.rejects(downloadModel({config,authorization,model,fetchImpl:async()=>new Response(new Uint8Array(5000))}));
+  await assert.rejects(downloadModel({config,authorization,model,fetchImpl:async()=>new Response('',{headers:{'content-length':'5000'}})}));
 });
 function client({session = true, serverError = false, allowed = false, rowId = 'allowed-uuid'} = {}) {
   return {

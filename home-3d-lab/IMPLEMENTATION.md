@@ -1,31 +1,40 @@
 # Implementation report
 
-Виконано на `feature/home-3d-lab`. Збережено статичну архітектуру Interactive Lab і всі наявні модулі; homepage отримав одну нову картку. Нова папка містить незалежні ES-модулі, український адаптивний UI та порожню безпечну публічну конфігурацію.
+Статична архітектура Interactive Lab, незалежний український Home 3D Lab і попередні застосунки збережені. Початковий MVP у PR #3 має Google OAuth/PKCE, UUID allowlist, приватний каталог, GLTFLoader/hierarchy/transforms, bounds framing, Orbit, Pointer Lock/WASD, gravity/Octree/capsule collisions, visibility, disposal, logout cancellation та вигаданий трикімнатний будинок. Публічний config містить тільки Supabase project URL/publishable key.
 
-Реалізовано Google OAuth через Supabase SDK/PKCE, перевірку сесії сервером, allowlist за UUID, приватний каталог моделей і автентифіковане завантаження GLB. Міграція створює приватний Storage bucket та RLS із restrictive guards проти сторонніх широких політик. Немає client uploads, public assets, службових ключів або live-demo обходу авторизації. Вихід/зміна сесії скасовують завантаження й знищують сцену.
+## Живий провал, який виправляє цей PR
 
-3D: GLTFLoader, світова трансформаційна обгортка, hierarchy/names/materials, bounds framing, Orbit, Pointer Lock/WASD, швидкість/eye height/gravity, Octree/capsule collision, visibility aliases, disposal геометрії/матеріалів/текстур. Вигаданий процедурний будинок має три кімнати, стелю/підлогу, отвори, відкриті дверні полотна й умовні меблі.
+У тесті власника чинна Google-сесія мала `home3d_is_allowed=false` і `home3d_can_read_object=false`, але старий authenticated Storage URL повертав 200 і 44 660 bytes вигаданого GLB. Нова URL з cacheNonce відмовляла з 400/NoSuchKey. Перевірка реальних DB policies підтвердила private bucket, enabled RLS і правильні guards. Повторний upload з backend `private, no-store, max-age=0, must-revalidate` не усунув видачу GLB старою адресою. Отже, клієнтські no-store/nonce та SQL mocks не підтверджували потрібну семантику відкликання.
+
+## Зміна
+
+- Клієнт робить POST `/functions/v1/home3d-download` із JWT та model UUID. Більше немає direct GET/signed URL fallback і передачі storage path у запиті.
+- Серверний handler перевіряє JWT через Auth, authenticated identity, чинний allowlist і enabled model через caller JWT/RLS. Service-role credential використовується тільки для читання фіксованого server-only vault. Дозвіл/каталог перевіряються повторно перед видачею bytes. POST responses/errors мають private/no-store і не копіюють cache headers Storage.
+- Нова міграція додає `home-3d-vault` і RESTRICTIVE guards, які закривають прямі browser reads/writes нового **та старого** bucket навіть дозволеному UUID. Сторонні bucket не змінюються. Файли не переміщуються/видаляються SQL-ом.
+- CORS точного origin, POST-only route, обмежений JSON body, строгий UUID/catalog path, фіксований bucket, контроль upstream redirects/timeout/розміру потоку, без privileged credentials у client/errors.
+- `verify_jwt=false` налаштовано свідомо: перевірка токена реалізована всередині handler через Auth `/user`, незалежно від legacy gateway verifier. Не є анонімним доступом до GLB.
 
 ## Перевірено локально
 
-- `node --test home-3d-lab/tests/core.mjs`: **7/7 passed**, без skipped tests.
-- `node home-3d-lab/tests/policies.mjs`: міграція виконується у PostgreSQL engine PGlite; anonymous/denied/allowed/revoked read outcomes, broad-policy guards, відмова browser upload/update/delete та self-allowlisting підтверджені. Мінімальні Supabase role/schema fixtures; реальний Storage HTTP service тут не запускався.
-- `python3 home-3d-lab/tests/browser.py`: Chromium, WebGL, GitHub Pages subpath, missing-config state, 7 попередніх сторінок, real pinned Supabase SDK import, mocked anonymous/denied/allowed states і OAuth redirect, Orbit, group visibility, pointer lock, WASD, Esc, logout cleanup/race, private GLB fetch/403 response, mobile width — passed.
-- Фізика: рух до західної стіни зупиняється біля `x=-3.69`, очі лишаються на `y≈1.65`; doorway між кімнатами пропускає рух, partition зупиняє. GLB roundtrip зберігає назви/ієрархію, поворот і nonuniform scale; додаткова origin/rotation/scale обгортка коректна, disposal викликається.
-- `git diff --check`, JavaScript syntax checks, огляд staged files — без приватних assets/привілейованих credentials.
+- `node --test home-3d-lab/tests/core.mjs home-3d-lab/tests/download-gateway.mjs`: **16/16 passed**, без skipped; configuration/OAuth/GLB gates/client POST і server authorization regression cases. У тесті upstream завжди готовий видати cached GLB; після відкликання повторний ідентичний POST відхилено до privileged Storage fetch.
+- `node home-3d-lab/tests/policies.mjs`: реальний PostgreSQL RLS engine PGlite; обидві міграції; anonymous/denied/allowed не читають новий/старий bucket, browser writes/self-allowlisting denied, broad policy capped, server role reads, unrelated bucket preserved. HTTP CDN тут не емулюється.
+- `deno check supabase/functions/home3d-download/index.ts`: Deno entrypoint пройшов перевірку (Deno 2.5.4, залежності для function не потрібні). Реальний Deno HTTP runtime також повернув 503/no-store при відсутній server configuration; процес зупинено після перевірки.
+- Chromium/WebGL: GitHub Pages subpath, missing config, 7 попередніх сторінок, pinned SDK import, mocked anonymous/denied/allowed UI, Orbit/WASD/Esc, collisions/GLB transforms/disposal, gateway 200/403, logout race, mobile. У Cloud pinned CDN resources доставлено незміненими через Python urllib з TLS validation, без browser TLS bypass. Auth/DB/Storage підмінено тільки тестовими fixtures.
 
-Додано PR workflow `home-3d-checks.yml` для повторення core/RLS/browser перевірок. Запуск у GitHub Actions — окремий результат; локальний pass не означає, що CI вже завершено.
+CI повторює core/gateway/PostgreSQL/browser перевірки. Локальний pass не є результатом CI або живого Supabase deployment.
 
-## Виправлення під час живого налаштування
+## Живе налаштування 2026-10-23
 
-Supabase SQL Editor відхилив `ALTER TABLE storage.objects` із `must be owner of table objects`. Прибрано непотрібну зміну службової таблиці: RLS вмикає платформа, а міграція перевіряє його наявність до створення об’єктів застосунку. Перевірки політик залишено. Додано regression check, що не допускає managed-table ALTER, та PostgreSQL-кейс для відсутнього Storage RLS: установка закривається без частково створених таблиць/bucket. Адміністративні policy grants Supabase відрізняються від звичайного PostgreSQL ownership; PGlite їх не емулює. Успішне виконання виправленої міграції у живому Supabase ще має підтвердити власник.
+Через захищене підключення Management API підтверджено правильний healthy проєкт; застосовано другу міграцію (API history version `20261023133702`, name `home3d_download_gateway_202610160001`). Новий vault приватний, чотири RESTRICTIVE guards перевірено. Лише вигаданий fixture (44 660 bytes, відома SHA-256) перенесено; Edge Function version 1 розгорнуто з reviewed source `27c227a`.
 
-## Публічна конфігурація розгортання
+Пройдено **24 живі HTTP-перевірки**: anonymous/forged JWT denied, чинний non-allowlisted session denied, allowed POST повернув точні fixture bytes/no-store, прямі Storage GET/sign/upload і self-allowlisting denied навіть для allowed user, після відкликання три однакові POST дали 403 без GLB, disabled/unknown model і зайвий client path відхилено. Тимчасовий користувач створений через Auth admin, email/password session підтверджена Auth `/user`; Google OAuth у браузері власника тут не виконувався. User/allowlist fixture видалені, enabled тестової моделі відновлено, права існуючого власника не змінено.
 
-До `config.js` додано URL проєкту та publishable key, надані власником. Порожній шаблон збережено у `config.example.js`. Власник повідомив про успішне виконання виправленої міграції та налаштування Google provider/redirects. Живий Google-вхід і Storage HTTP ще потребують перевірки; запити Cloud до домену Supabase наразі блокуються мережевим проксі. Синтаксична валідація ключа не підтверджує, що він приймається сервером. Тест відсутньої конфігурації тепер явно підставляє порожній fixture, не залежачи від production settings.
+Старий вигаданий object видалено через Storage API після перевірки vault copy. Спочатку cached server URL ще повертала GLB; після інвалідації та сама попередньо завантажена URL, uncached URL і public URL дали 400 без GLB. Original owner Google JWT/browser cache недоступні Cloud і залишаються ручною перевіркою. [Санітизований звіт](tests/live-acceptance-2026-10-23.json) не містить токенів, user IDs, email або bytes.
 
-## Потребує власника
+## Залишилося власнику
 
-Створити Supabase-проєкт, застосувати міграцію, увімкнути Google provider із secret тільки в Dashboard, налаштувати exact callback/app redirects, заповнити public config і дозволені UUID. Після цього виконати всі direct Storage HTTP та live OAuth кейси в ACCEPTANCE.md з вигаданим файлом. Реальну модель завантажувати лише в перевірений private bucket, не в репозиторій. Ні живу production authentication, ні інтеграційний HTTP захист у неналаштованому проєкті тут не заявлено працюючими.
+Переглянути й злити PR №5; дочекатися Pages deployment і перевірити новий viewer зі своїм Google-акаунтом, включно зі старою cached URL. Другу міграцію повторно виконувати не потрібно: Supabase backend уже налаштовано. Повний план — [ACCEPTANCE](ACCEPTANCE.md); інструкція нової інсталяції — [HOME3D_GATEWAY_SETUP](../supabase/HOME3D_GATEWAY_SETUP.md).
 
-Наступна віха: end-to-end security acceptance на реальному Supabase з вигаданим GLB, потім імпорт приватної моделі зі спрощеними collision meshes. Furniture editing, lights, stairs/step-up, touch walkthrough і Solar Roof Lab залишаються поза MVP.
+PR автоматично не зливався, чинний Pages frontend ще не оновлено. Новий backend acceptance виконано з тимчасовою Auth сесією; production Google UI acceptance і original-owner cache check ще не завершено. Справжні assets не завантажувалися.
+
+Наступна віха після security acceptance: імпорт справжнього приватного GLB зі спрощеними collision meshes. Редактор меблів, stairs/step-up, touch walkthrough і Solar Roof Lab залишаються поза цією зміною.

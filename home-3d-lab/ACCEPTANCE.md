@@ -11,7 +11,7 @@
 | Дозволений UUID | Видно приватний каталог і demo, моделі відкриваються |
 | Інший email/UUID із тим самим доменом | Доступ закрито, якщо UUID не додано адміністратором |
 | Вихід під час завантаження | Запит скасовано, модель не з’являється після виходу |
-| Відкликання active | Наступний Storage GET відхилено; viewport очищається після recheck (до 30 с у активній вкладці) |
+| Відкликання active | Наступний POST функції відхилено, навіть після успішного завантаження за тим самим URL/body; viewport очищається після recheck (до 30 с у активній вкладці) |
 | Відсутня мережа/помилка перевірки | Viewer закривається; жодного fallback demo без auth |
 | Orbit | Rotate, zoom, pan, reset коректні на desktop; touch Orbit на mobile |
 | Walk | Pointer lock тільки після натискання, WASD, mouse look, speed, Esc; зміна mode й reset |
@@ -22,17 +22,29 @@
 | Visibility | Roof/floors/walls/furniture перемикаються згідно з aliases |
 | Mobile 390 px | Без горизонтального overflow, login/model/Orbit доступні; Walk desktop-first |
 
-## Прямі Storage запити — обов’язково
+## Серверна видача — обов’язкова жива перевірка
 
-У Network DevTools або локальному HTTP-клієнті використовуй **тільки вигаданий тестовий файл** і публічний publishable/anon key. Реальні JWT бери зі своєї тестової сесії локально, не вставляй у чат чи issue.
+Спочатку завершити [перехід](../supabase/HOME3D_GATEWAY_SETUP.md). Усі bytes тільки вигаданого `fictional-house.glb`. Публічний ключ і JWT своєї тестової сесії використовувати локально; не вставляти JWT/службові ключі у чат, issues або screenshots.
 
-1. GET `https://<ref>.supabase.co/storage/v1/object/authenticated/home-3d-private/<test-path>.glb`, headers `apikey: <publishable-key>`, без Authorization: 4xx, **не байти GLB**.
-2. Той самий GET з `Authorization: Bearer <non-allowlisted-user-jwt>`: 4xx, **не GLB**. Supabase може маскувати denied як not found; перевір bytes/content, не лише конкретний status.
-3. Той самий GET з дозволеним JWT: 200 і GLB magic `glTF`.
-4. GET `/storage/v1/object/public/home-3d-private/<test-path>.glb` без JWT: 4xx; перевір також із JWT, private bucket не повинен ставати public.
-5. Відключи модель (`enabled=false`) або відклич user (`active=false`), повтори authenticated GET зі ще чинним JWT: 4xx.
-6. З обох browser roles спробуй INSERT у `home3d_allowed_users`, upload/replace/delete цього bucket: відмова. Owner Dashboard залишається адміністративним шляхом.
-7. Перевір невключений у каталог object path: відмова навіть для дозволеного user.
-8. Перевір запит списку allowlist: user бачить тільки свій активний UUID. Anonymous не читає таблиці/каталог.
+1. POST `/functions/v1/home3d-download`, `Content-Type: application/json`, body `{ "model_id": "<UUID тестової моделі>" }`, header `apikey` — без Authorization: 401, не GLB.
+2. Той самий POST із чинним JWT користувача без активного UUID: 403, не GLB.
+3. Із дозволеним JWT: 200, GLB magic `glTF`; відповідь має `Cache-Control` із `no-store`. GET/HEAD до функції: 405, ніколи GLB.
+4. Залишити ту саму сесію, попередньо успішно завантаживши файл. Вимкнути `active` через SQL Editor. Повторити **той самий POST URL, body і JWT без nonce** кілька разів: кожного разу 403, не GLB. Перевірити RPC false до й після тесту. Відновити `active` після завершення.
+5. Повторити з `enabled=false`: 403/404, не GLB. Відновити тестовий запис.
+6. Повторити з другого дозволеного користувача після відкликання першого: другий має 200. Якщо другого акаунта немає, позначити цей кейс невиконаним.
+7. Вимкнена/відсутня функція, неправильна server config або помилка Auth/DB/Storage: жодного fallback до прямих Storage GET/signed URL, UI закритий.
+8. Довільний `storage_path`, `bucket`, URL у POST або не-UUID ID: 400; зареєстрована вимкнена/відсутня модель: 403/404. Список каталогів не можна використати як довільний proxy.
 
-Зафіксуй тільки статуси, тип відповіді й pass/fail; не зберігай секрети. Ці HTTP-перевірки та живий Google OAuth ще **не виконані** у Codex через відсутність налаштованого Supabase-проєкту.
+## Прямий Storage — має відмовляти навіть дозволеному користувачу
+
+Для anonymous, чинного Google JWT без дозволу **і дозволеного JWT**:
+
+- GET `/storage/v1/object/authenticated/home-3d-vault/fictional-house.glb`: 4xx, не GLB, для звичайного URL та нового query параметра.
+- GET `/storage/v1/object/public/home-3d-vault/fictional-house.glb`: 4xx, не GLB.
+- POST `/storage/v1/object/sign/home-3d-vault/fictional-house.glb` із `{ "expiresIn": 60 }`: відмова, жодного signed URL.
+- Upload/replace/delete/list об’єктів vault: відмова/порожній список; Dashboard власника працює.
+- INSERT/UPDATE `home3d_allowed_users` із browser roles: відмова; user читає тільки свій активний UUID.
+
+Також перевірити старі authenticated/public URL `home-3d-private/fictional-house.glb` після видалення старого демофайлу через Storage Dashboard та завершення інвалідації CDN. Повторити зі **старою сесією**, яка раніше отримувала GLB. Якщо старий URL ще віддає bytes, перехід не завершено: зберегти лише статус/cache headers і звернутися до Supabase support; реальну модель не завантажувати. SQL DELETE/UPDATE `storage.objects` не видаляє файл у backend і не є способом інвалідації.
+
+Зафіксувати тільки HTTP status, GLB magic yes/no і pass/fail без токенів або bytes. 2026-10-23 Cloud виконав [24 живі backend HTTP-перевірки і 3 перевірки старої URL](tests/live-acceptance-2026-10-23.json): усі пройдені. Використано тимчасову email/password Supabase Auth сесію, а не Google-сесію власника. Старий direct GET тест раніше **не пройдено**; після видалення старого object попередньо завантажена серверна URL відмовляє. Після merge/Pages deployment власнику потрібно перевірити свій Google login, private viewer і стару URL у своєму браузері.

@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'home-3d-lab/**'
-      - 'supabase/migrations/**'
+      - 'supabase/**'
       - 'index.html'
       - '.github/workflows/home-3d-checks.yml'
 permissions:
@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
       - name: Core and PostgreSQL RLS checks
         run: |
-          node --test home-3d-lab/tests/core.mjs
+          node --test home-3d-lab/tests/core.mjs home-3d-lab/tests/download-gateway.mjs
           npm --prefix /tmp/home3d-tools --cache /tmp/home3d-npm-cache install --no-audit --no-fund @electric-sql/pglite@0.3.14
           node home-3d-lab/tests/policies.mjs
       - name: Install browser tooling

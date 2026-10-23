@@ -1,5 +1,3 @@
-export const PRIVATE_BUCKET = 'home-3d-private';
-
 export function validateGLB(buffer) {
   if (buffer.byteLength < 20) throw new Error('Файл не є GLB.');
   const view = new DataView(buffer);
@@ -18,11 +16,13 @@ export function validateGLB(buffer) {
 
 export async function downloadModel({ config, authorization, model, signal, progress, fetchImpl = fetch }) {
   if (!authorization?.userId || !authorization.token) throw new Error('Для завантаження потрібен підтверджений дозвіл.');
-  const path = model.storage_path;
-  if (typeof path !== 'string' || !/\.glb$/i.test(path) || path.split('/').some(p => !p || p === '.' || p === '..') || /[\\?#\x00-\x1f]/.test(path)) throw new Error('Некоректний шлях приватної моделі.');
-  const url = `${config.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/authenticated/${PRIVATE_BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`;
-  const response = await fetchImpl(url, { headers: { apikey: config.supabasePublishableKey, Authorization: `Bearer ${authorization.token}` }, signal, cache: 'no-store', credentials: 'omit', redirect: 'error' });
-  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 || response.status === 404 ? 'Приватна модель недоступна. Перевір дозвіл і налаштування Storage.' : 'Не вдалося завантажити приватну модель.');
+  if (typeof model?.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(model.id)) throw new Error('Некоректний ID приватної моделі.');
+  // POST is deliberately used for binary delivery: every request must reach
+  // the authorization handler, including repeated downloads after revocation.
+  // Never fall back to a direct Storage GET or a signed URL.
+  const url = `${config.supabaseUrl.replace(/\/$/, '')}/functions/v1/home3d-download`;
+  const response = await fetchImpl(url, { method: 'POST', headers: { apikey: config.supabasePublishableKey, Authorization: `Bearer ${authorization.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model_id: model.id }), signal, cache: 'no-store', credentials: 'omit', redirect: 'error' });
+  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 || response.status === 404 ? 'Приватна модель недоступна. Перевір дозвіл або звернися до власника.' : 'Не вдалося завантажити приватну модель. Спробуй пізніше або звернися до власника.');
   const total = Number(response.headers.get('content-length')) || 0;
   if (total > config.maxModelBytes) { await response.body?.cancel(); throw new Error('Модель перевищує ліміт розміру.'); }
   const reader = response.body.getReader(); let size = 0; const chunks = [];
