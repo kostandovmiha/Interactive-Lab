@@ -22,11 +22,11 @@ dialog{width:min(480px,calc(100vw - 30px));border:1px solid #45627d;border-radiu
 <body>
 <header><a href="../" class="brand">✦ INTERACTIVE<b>LAB</b> / LEARNING</a><a href="../" class="return">← Усі експерименти</a></header>
 <div class="wrap">
-<section class="hero"><div class="eyebrow">Навчання · Дослідження · CG</div><h1>Твоя <em>бібліотека знань.</em></h1><p class="lead">Конспекти курсів і власні дослідження Houdini в одному місці. Матеріали та нотатки кожного напряму зберігаються окремо на твоєму Google Drive.</p></section>
+<section class="hero"><div class="eyebrow">Навчання · Дослідження · CG</div><h1>Твоя <em>бібліотека знань.</em></h1><p class="lead">Конспекти курсів, самостійне вивчення CG та композитингу в одному місці. Матеріали та нотатки кожного напряму зберігаються окремо на твоєму Google Drive.</p></section>
 <div class="section-head"><h2>Навчальні напрями</h2><button id="add" class="primary">+ Новий напрям</button></div>
 <div class="grid" id="catalog"></div>
 <section class="searchbox"><div class="section-head" style="margin:0"><h2>Пошук у знаннях</h2><span class="small">Google Drive · усі підключені напрями</span></div><p class="small">Пошук за змістом, тегами, джерелами та назвами уроків. Працює після підключення відповідних папок у редакторах.</p><div class="searchrow"><input id="search" placeholder="Наприклад: #MaterialX, USD, roughness" aria-label="Пошуковий запит"><button id="runSearch">⌕ Шукати у Google Drive</button></div><div class="results" id="results"><p class="small">Введи запит і натисни «Шукати».</p></div></section>
-<footer class="footer">Interactive Lab · Learning Lab v1.4.1 · Google Drive залишається основним сховищем нотаток. Бібліотека власних напрямів поки зберігається у цьому браузері.</footer>
+<footer class="footer">Interactive Lab · Learning Lab v1.5.0 · Google Drive залишається основним сховищем нотаток. Бібліотека власних напрямів поки зберігається у цьому браузері.</footer>
 </div>
 <dialog id="newProject"><h2>Новий навчальний напрям</h2><p class="small">Назва й тип зберігаються в цьому браузері. Самі нотатки після підключення зберігатимуться на Google Drive.</p><label for="newName">Назва</label><input id="newName" placeholder="Наприклад, Houdini — Shaders" maxlength="120"><label for="newType">Тип навчання</label><select id="newType"><option value="topic">Самостійне вивчення · Теми → Матеріали</option><option value="course">Курс · Тижні → Уроки</option></select><div class="buttons"><button id="createProject" class="primary">Створити</button><button id="cancel">Скасувати</button></div><p class="small">Для цього напряму потрібно буде створити окрему папку на Google Drive й обрати її в налаштуваннях редактора.</p></dialog>
 <script>
@@ -36,7 +36,8 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const presets=[
 {id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",description:"Професійний курс · USD, Solaris, Karma, світло та композитинг",folderName:"Rebelway — Cinematic Lighting"},
-{id:"copernicus",name:"Houdini — Copernicus",type:"topic",description:"Самостійне вивчення · COP, PBR, MaterialX, Karma та експерименти",folderName:"Houdini — Copernicus"}
+{id:"copernicus",name:"Houdini — Copernicus",type:"topic",description:"Самостійне вивчення · COP, PBR, MaterialX, Karma та експерименти",folderName:"Houdini — Copernicus"},
+{id:"nuke",name:"Foundry Nuke — Compositing",type:"topic",description:"Node Graph, EXR/AOV, Merge, OCIO, keying, tracking та CG-композитинг",folderName:"Foundry Nuke — Compositing"}
 ];
 const getCustom=()=>{try{const c=JSON.parse(localStorage.getItem("ll-catalog-v2")||"[]");return Array.isArray(c)?c:[];}catch(e){return [];}};
 const projects=()=>presets.concat(getCustom());
