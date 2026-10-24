@@ -70,7 +70,8 @@ const id=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.
 const projectId=new URLSearchParams(location.search).get("project")||"rebelway";
 const presets={
  rebelway:{id:"rebelway",name:"Rebelway — Cinematic Lighting",type:"course",folderName:"Rebelway — Cinematic Lighting"},
- copernicus:{id:"copernicus",name:"Houdini — Copernicus",type:"topic",folderName:"Houdini — Copernicus"}
+ copernicus:{id:"copernicus",name:"Houdini — Copernicus",type:"topic",folderName:"Houdini — Copernicus"},
+ nuke:{id:"nuke",name:"Foundry Nuke — Compositing",type:"topic",folderName:"Foundry Nuke — Compositing"}
 };
 const customProjects=JSON.parse(localStorage.getItem("ll-catalog-v2")||"[]");
 const project=presets[projectId]||customProjects.find(p=>p.id===projectId);
@@ -82,7 +83,25 @@ const shared=JSON.parse(localStorage.getItem("ll-oauth-v2")||"{}");
 const config=JSON.parse(localStorage.getItem(storageKey)||"{}");
 for(const field of ["client","apiKey","project"])if(!config[field])config[field]=shared[field]||legacy[field]||"";
 const topicNames=["Основи COP","Процедурні текстури","PBR-карти","MaterialX / Karma","Оптимізація та кешування","Власні експерименти"];
-const blank=()=>({schema:1,title:project.name,weeks:(thematic?(projectId==="copernicus"?topicNames:["Основи","Матеріали","Експерименти"]):Array.from({length:8},(_,i)=>"Тиждень "+(i+1))).map(name=>({id:id(),name,lessons:[]}))});
+// A new Nuke workspace receives a practical roadmap; an existing Drive course.json always wins.
+const nukeRoadmap=[
+ ["01 · Основи Nuke та Node Graph",["Read → Viewer → Write: перший композит","Node Graph, Viewer та гарячі клавіші"]],
+ ["02 · Канали, альфа та EXR",["RGBA, alpha, Premult / Unpremult","Багатоканальний EXR: Shuffle та AOV"]],
+ ["03 · Color Management",["Linear workflow: OCIO та Viewer Process","ACEScg, sRGB і правильний експорт"]],
+ ["04 · Merge, маски та Roto",["Merge (over): порядок, маски й альфа","Roto та RotoPaint: ізоляція елементів"]],
+ ["05 · Keying та Cleanup",["Keying / despill / edge treatment","Paint, cleanup і трекінг масок"]],
+ ["06 · Tracking та Matchmove",["Tracker і PlanarTracker: практика","CornerPin, Stabilize та Matchmove"]],
+ ["07 · Композитинг CG-рендерів",["Rebuild із AOV: diffuse, specular, emission","ZDefocus, grain та інтеграція у plate"]],
+ ["08 · Практичні шоти",["CG-обʼєкт у реальному відео","EXR → Nuke → фінальний рендер: перевірка кольорів"]]
+];
+const blank=()=>{
+ const sections=projectId==="nuke"?nukeRoadmap.map(([name,tasks])=>({name,tasks})):
+  (thematic?(projectId==="copernicus"?topicNames:["Основи","Матеріали","Експерименти"]):Array.from({length:8},(_,i)=>"Тиждень "+(i+1))).map(name=>({name,tasks:[]}));
+ return {schema:1,title:project.name,weeks:sections.map(({name,tasks})=>({id:id(),name,lessons:tasks.map(name=>({id:id(),name,status:"todo",notes:[],source:"",url:"",version:""}))}))};
+};
+const softwareName=projectId==="nuke"?"Nuke":"Houdini";
+const versionExample=projectId==="nuke"?"16.0":"22";
+const sourceExample=projectId==="nuke"?"Foundry / Курс / YouTube":"SideFX / Entagma / YouTube";
 const types={note:"Нотатка",question:"Питання",recipe:"Lighting Recipe",experiment:"Експеримент"};
 const validURL=u=>{try{return ["https:","http:"].includes(new URL(u).protocol);}catch(e){return false;}};
 /* Rich text is an optional addition to schema:1. n.text remains plain for search/backups. */
@@ -497,9 +516,9 @@ function render(){
  $("bar").style.width=(items.length?Math.round(done/items.length*100):0)+"%";$("progress").textContent=done+" із "+items.length+(thematic?" матеріалів опрацьовано":" уроків завершено");
  $("nav").innerHTML=course.weeks.map(w=>'<div class="week"><div class="weekhead"><button data-act="renameweek" data-id="'+esc(w.id)+'">'+esc(w.name)+'</button><button class="ghost mini" data-act="addlesson" data-id="'+esc(w.id)+'">'+(thematic?"+ Матеріал":"+ Урок")+'</button></div>'+w.lessons.map(l=>'<button class="lesson '+(l.id===active?"active":"")+'" data-act="select" data-id="'+esc(l.id)+'"><i class="dot '+esc(l.status)+'"></i>'+esc(l.name)+'</button>').join("")+'</div>').join("");
  const obj=chosen(),main=$("main");
- if(!obj){main.innerHTML=renderWatch()+'<div class="eyebrow">Learning Lab · '+(thematic?'Самостійне вивчення':'Курс')+'</div><h1>'+esc(project.name)+'</h1><p class="muted">'+(thematic?'Додай матеріал до теми й вкажи джерело, посилання та версію Houdini.':'Додай перший урок у потрібний тиждень.')+'</p>'+(connected?"":'<div class="notice warn">Зараз записи не зберігаються. Спершу підключи Google Drive або експортуй JSON вручну.</div>')+'<div class="empty"><strong>📖 Нічого не вибрано</strong>Додай '+(thematic?"матеріал":"урок")+', щоб почати.</div>';updateJumpLast();return;}
+ if(!obj){main.innerHTML=renderWatch()+'<div class="eyebrow">Learning Lab · '+(thematic?'Самостійне вивчення':'Курс')+'</div><h1>'+esc(project.name)+'</h1><p class="muted">'+(thematic?'Додай матеріал до теми й вкажи джерело, посилання та версію '+esc(softwareName)+'.':'Додай перший урок у потрібний тиждень.')+'</p>'+(connected?"":'<div class="notice warn">Зараз записи не зберігаються. Спершу підключи Google Drive або експортуй JSON вручну.</div>')+'<div class="empty"><strong>📖 Нічого не вибрано</strong>Додай '+(thematic?"матеріал":"урок")+', щоб почати.</div>';updateJumpLast();return;}
  const l=obj.l;
- const sourceHTML=thematic?'<div class="sourcebox"><div class="row"><label>Джерело<input id="materialSource" placeholder="SideFX / Entagma / YouTube" value="'+esc(l.source||"")+'"></label><label>Версія Houdini<input id="materialVersion" placeholder="22" value="'+esc(l.version||"")+'"></label></div><label>Посилання на матеріал<input id="materialURL" type="url" placeholder="https://..." value="'+esc(l.url||"")+'"></label>'+(validURL(l.url)?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">↗ Відкрити джерело</a>':'')+'</div>':"";
+ const sourceHTML=thematic?'<div class="sourcebox"><div class="row"><label>Джерело<input id="materialSource" placeholder="'+esc(sourceExample)+'" value="'+esc(l.source||"")+'"></label><label>Версія '+esc(softwareName)+'<input id="materialVersion" placeholder="'+esc(versionExample)+'" value="'+esc(l.version||"")+'"></label></div><label>Посилання на матеріал<input id="materialURL" type="url" placeholder="https://..." value="'+esc(l.url||"")+'"></label>'+(validURL(l.url)?'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">↗ Відкрити джерело</a>':'')+'</div>':"";
  let body="";
  if(mode==="notes")body='<div class="row" style="justify-content:space-between;margin-top:30px"><h2>Конспект · '+l.notes.length+' записів</h2><button class="primary" data-action="add" data-id="note">+ Нотатка</button></div>'+(connected?"":'<div class="notice warn">Незбережений локальний сеанс. Підключи Drive перед важливими записами!</div>')+(l.notes.length?l.notes.map(card).join(""):'<div class="empty"><strong>Нотаток поки немає</strong>Додавай думки, таймкоди, запитання, скріншоти й Lighting Recipes.</div>')+'<div class="row" style="justify-content:center;margin-top:26px"><button class="primary" data-action="add" data-id="note">+ Новий запис</button></div><div id="notesEnd" aria-hidden="true"></div>';
  else{
@@ -626,7 +645,7 @@ $("forget").onclick=()=>{if(confirm("Від'єднати папку? Файли 
 $("backup").onclick=()=>download(projectId+"-backup.json",JSON.stringify(course,null,2),"application/json");
 $("markdown").onclick=()=>{
  const lines=["# "+course.title,""];
- for(const w of course.weeks){lines.push("## "+w.name,"");for(const l of w.lessons){lines.push("### "+l.name,"","Статус: "+l.status,"",...(thematic?["Джерело: "+(l.source||""),"Посилання: "+(l.url||""),"Houdini: "+(l.version||""),""]:[]));for(const n of l.notes)lines.push("#### "+types[n.type]+(n.time?" · "+n.time:""),"",(n.html?sanitizeRich(n.html):n.text||""),n.tags?"Теги: "+n.tags:"",n.imageId?"Скріншот (Drive ID): "+n.imageId:"","");}}
+ for(const w of course.weeks){lines.push("## "+w.name,"");for(const l of w.lessons){lines.push("### "+l.name,"","Статус: "+l.status,"",...(thematic?["Джерело: "+(l.source||""),"Посилання: "+(l.url||""),softwareName+": "+(l.version||""),""]:[]));for(const n of l.notes)lines.push("#### "+types[n.type]+(n.time?" · "+n.time:""),"",(n.html?sanitizeRich(n.html):n.text||""),n.tags?"Теги: "+n.tags:"",n.imageId?"Скріншот (Drive ID): "+n.imageId:"","");}}
  download(projectId+"-notes.md",lines.join("\n"),"text/markdown");
 };
 $("import").onclick=()=>$("importInput").click();
