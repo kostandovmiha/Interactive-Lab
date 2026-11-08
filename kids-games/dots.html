@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>З’єднай точки — Мій маленький світ</title>
+<meta name="theme-color" content="#e1f7ff" />
+<meta name="description" content="З’єднуй пронумеровані точки за порядком та відкривай кольорові малюнки." />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eaf3fc; font-family: ui-rounded, 'Trebuchet MS', system-ui, -apple-system, sans-serif; color: #293155; }
+  #dots-play { width: min(100%, 720px); margin: auto; background: linear-gradient(158deg, #e1f7ff 0%, #f3edff 52%, #fff1e2 100%); padding: 16px; min-height: 100svh; }
+  .game-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .game-title { display: flex; align-items: center; gap: 12px; }
+  .game-logo { width: 52px; height: 52px; border-radius: 17px; display: grid; place-items: center; font-size: 29px; background: #fff; box-shadow: 0 6px 16px #6670ba18; }
+  .game-title h1 { margin: 0; font-size: clamp(22px, 5vw, 28px); letter-spacing: -.6px; line-height: 1.1; }
+  .game-title p { margin: 5px 0 0; color: #666c8e; font-size: 12px; }
+  button { font: inherit; cursor: pointer; }
+  .sound-btn { border: 0; background: #fff; box-shadow: 0 3px 10px #45548813; color: #4049a0; border-radius: 17px; width: 46px; height: 46px; font-size: 21px; flex: none; }
+  .level-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 23px 0 10px; }
+  .level-title b { font-size: 14px; }
+  .level-title span { color: #6a7294; font-size: 12px; }
+  .levels { display: flex; overflow-x: auto; gap: 9px; padding: 2px 1px 10px; scrollbar-width: none; }
+  .levels::-webkit-scrollbar { display:none; }
+  .level { position: relative; background: #fffafc; color: #53617f; border: 2px solid transparent; border-radius: 17px; min-width: 104px; padding: 9px 10px; display:flex; flex-direction:column; align-items:center; gap: 3px; box-shadow: 0 2px 10px #7e80b00e; transition: transform .2s, border-color .2s; }
+  .level:active, .action:active { transform: scale(.96); }
+  .level[aria-pressed=true] { background:#fff; color:#38336e; border-color:#8a70ee; box-shadow:0 4px 14px #7561ca1d; }
+  .level .em { font-size: 26px; line-height: 30px; }
+  .level .nm { font-size: 13px; font-weight: 800; }
+  .level .cnt { font-size: 10px; color: #8388a4; }
+  .level .done { position: absolute; top: 5px; right: 7px; color: #2cbb8f; font-size: 14px; }
+  .panel { background:#ffffffcf; border: 1px solid #fff; padding: 11px; border-radius: 28px; box-shadow: 0 8px 34px #707cc31b; }
+  .progress-row { display:flex; justify-content:space-between; align-items:center; padding: 6px 8px 10px; gap:12px; }
+  .progress-row strong { font-size: 16px; }
+  .progress-row .count { background:#eeeafd; border-radius:999px; padding:6px 11px; font-weight:900; font-size:14px; color:#7354d4; font-variant-numeric: tabular-nums; }
+  .track { height: 9px; border-radius:9px; background:#eaeaf6; overflow:hidden; margin: 0 7px 12px; }
+  .bar { width: 0; height:100%; background:linear-gradient(90deg,#8d68fa,#54d6b4); transition: width .26s; border-radius:9px; }
+  .scene { position:relative; aspect-ratio: 1 / 1; overflow:hidden; border-radius: 22px; background: linear-gradient(170deg,#f2faff,#fffaf1); border: 2px solid #eef0ff; user-select:none; -webkit-user-select:none; }
+  #drawing { width:100%; height:100%; display:block; touch-action:none; cursor:crosshair; }
+  .hint-line { position:absolute; pointer-events:none; top:10px; left:50%; transform:translateX(-50%); width:max-content; max-width:90%; border-radius:20px; background:#ffffffd8; box-shadow:0 3px 10px #5874a015; padding:7px 13px; font-size:12px; color:#646a86; font-weight:750; }
+  .scene.completed .hint-line { background:#d9fff0; color:#247956; }
+  .scene svg .dot-next { animation: pulse-ring 1.4s infinite; transform-box: fill-box; transform-origin:center; }
+  @keyframes pulse-ring { 0%,100% {opacity:.7; transform:scale(.93)} 50% {opacity:1; transform:scale(1.14)} }
+  .finish-art { animation: art-in .55s cubic-bezier(.2,.9,.3,1) both; transform-origin: 50% 50%; }
+  @keyframes art-in { 0%{opacity:0; transform:scale(.90)} 100%{opacity:1; transform:scale(1)} }
+  .bottom-row { display:flex; gap:9px; align-items:stretch; flex-wrap:wrap; justify-content:space-between; margin-top:11px; }
+  .action { border:0; border-radius:16px; min-height:46px; padding: 10px 15px; background:#eeeafb; color:#6555b4; font-weight:850; font-size:13px; transition:transform .15s; }
+  .action.primary { color:#fff; background:linear-gradient(120deg,#8861f0,#6a64e8); box-shadow:0 5px 14px #7f6ce447; }
+  .help { font-size:12px; font-weight:650; color:#717994; text-align:center; margin:14px 4px 4px; min-height:18px; }
+  .toast { position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); background:#fff; border:2px solid #b7a3ff; color:#6651bb; padding:11px 18px; border-radius:20px; font-weight:850; box-shadow:0 10px 30px #6a53af33; pointer-events:none; opacity:0; z-index:3; text-align:center; white-space:nowrap; }
+  .toast.show { animation: show-toast 1.15s both; }
+  @keyframes show-toast { 0%{opacity:0; transform:translate(-50%,-45%) scale(.8)} 15%,75%{opacity:1; transform:translate(-50%,-50%) scale(1)} 100%{opacity:0; transform:translate(-50%,-65%) scale(.95)} }
+  .spark { position:absolute; z-index:2; pointer-events:none; font-size:26px; animation: sparkle 1.5s ease-out forwards; left:50%; top:50%; }
+  @keyframes sparkle { 0%{opacity:0;transform:translate(0,0) scale(.4) rotate(0)} 15%{opacity:1} 100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.2) rotate(var(--rot))} }
+  .done-message { text-align:center; font-weight:900; color:#2aa981; padding: 5px 0; }
+  @media (max-width:390px) { #dots-play{padding:11px;} .game-logo{width:44px;height:44px;} .game-title h1{font-size:21px;} .level{min-width:94px;} .bottom-row .action{flex:1;} }
+  @media (min-width:720px) { #dots-play { min-height: 100vh; border-radius:30px; margin-top:15px; margin-bottom:15px; padding:23px; } .scene {max-height:540px;} .panel {display:flex;flex-direction:column;} .scene svg{ max-height:540px;} }
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+.back-to-games{display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;padding:10px 14px;border-radius:14px;background:#ffffffd9;color:#6553a2;text-decoration:none;font-size:14px;font-weight:850;box-shadow:0 3px 10px #45548813}
+.back-to-games:focus-visible,button:focus-visible{outline:3px solid #6b50d4;outline-offset:3px}
+</style>
+</head>
+<body>
+<div id="dots-play">
+  <a class="back-to-games" href="./">← До всіх ігор</a>
+  <div class="game-head">
+    <div class="game-title"><span class="game-logo">✏️</span><div><h1>З'єднай точки</h1><p>Маленька пригода з цифрами ✨</p></div></div>
+    <button id="sound" class="sound-btn" type="button" aria-label="Вимкнути звуки" title="Звуки">🔊</button>
+  </div>
+  <div class="level-title"><b>Обери картинку</b><span>5 малюнків</span></div>
+  <div id="levels" class="levels" aria-label="Малюнки"></div>
+  <div class="panel">
+    <div class="progress-row"><strong id="puzzleName">🏡 Будиночок</strong><span id="counter" class="count">0 / 13</span></div>
+    <div class="track"><div id="bar" class="bar"></div></div>
+    <div id="scene" class="scene">
+      <svg id="drawing" viewBox="0 0 400 400" role="img" aria-label="Ігрове поле з пронумерованими точками">
+        <defs>
+          <pattern id="bgdots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1" fill="#a1c2e3" opacity=".22"/></pattern>
+        </defs>
+        <rect width="400" height="400" fill="url(#bgdots)" />
+        <g id="art"></g>
+        <polyline id="trail" fill="none" stroke="#7359dd" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+        <line id="preview" fill="none" stroke="#a69adf" stroke-width="3" stroke-dasharray="5 8" stroke-linecap="round" style="display:none"></line>
+        <g id="points"></g>
+      </svg>
+      <div class="hint-line" id="hintline">Почни з точки 1 👆</div>
+      <div class="toast" id="toast" aria-live="polite"></div>
+    </div>
+    <div class="bottom-row">
+      <button class="action" id="hintBtn" type="button">💡 Підказка</button>
+      <button class="action" id="resetBtn" type="button">↻ Спочатку</button>
+      <button class="action primary" id="nextBtn" type="button">Інша картинка →</button>
+    </div>
+  </div>
+  <p id="help" class="help" aria-live="polite">Торкайся цифр по черзі або веди пальчиком від точки до точки.</p>
+</div>
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const pictures = [
+    {name:'Будиночок', emoji:'🏡', color:'#ffc47c', points:[[76,207],[107,177],[138,148],[169,119],[200,89],[231,119],[262,148],[293,177],[324,207],[285,207],[285,319],[115,319],[115,207]], details:`
+      <rect x="180" y="262" width="42" height="57" rx="4" fill="#d48d6a"/><circle cx="213" cy="293" r="3" fill="#ffecab"/>
+      <rect x="138" y="231" width="33" height="32" rx="4" fill="#a8ecff" stroke="#fff" stroke-width="5"/><path d="M154.5 232v30M139 247h31" stroke="#fff" stroke-width="3"/>
+      <rect x="231" y="231" width="33" height="32" rx="4" fill="#a8ecff" stroke="#fff" stroke-width="5"/><path d="M247.5 232v30M232 247h31" stroke="#fff" stroke-width="3"/>
+      <circle cx="324" cy="90" r="22" fill="#ffd66b" opacity=".9"/><path d="M53 338h293" stroke="#77d9a1" stroke-width="9" stroke-linecap="round"/>
+    `},
+    {name:'Рибка', emoji:'🐠', color:'#7fdbf4', points:[[75,134],[102,155],[131,174],[159,153],[192,136],[229,132],[266,145],[298,168],[323,202],[298,236],[266,258],[229,271],[192,267],[159,250],[131,230],[102,249],[75,269]], details:`
+      <circle cx="279" cy="185" r="10" fill="#fff"/><circle cx="282" cy="185" r="4.5" fill="#3e4679"/>
+      <path d="M187 154Q221 202 187 247" stroke="#42aeca" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M185 139L217 98L239 134" fill="#68ceef" stroke="#398fd4" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M182 263L218 293L240 269" fill="#68ceef" stroke="#398fd4" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="312" cy="102" r="10" stroke="#80d2eb" stroke-width="3" fill="none"/><circle cx="335" cy="76" r="6" stroke="#80d2eb" stroke-width="2.5" fill="none"/>
+      <path d="M286 206q8 8 17 0" fill="none" stroke="#3889bc" stroke-width="3" stroke-linecap="round"/>
+    `},
+    {name:'Котик', emoji:'🐱', color:'#ffd19d', points:[[116,135],[105,82],[159,115],[200,108],[242,115],[295,82],[283,135],[308,163],[320,203],[309,248],[277,287],[236,313],[200,319],[164,313],[123,287],[92,248],[80,203],[92,163]], details:`
+      <path d="M119 128L116 101L150 122ZM281 128L284 101L250 122Z" fill="#ee9f9d"/>
+      <ellipse cx="153" cy="204" rx="10" ry="16" fill="#fff"/><ellipse cx="247" cy="204" rx="10" ry="16" fill="#fff"/>
+      <ellipse cx="155" cy="207" rx="4.5" ry="10" fill="#494367"/><ellipse cx="245" cy="207" rx="4.5" ry="10" fill="#494367"/>
+      <path d="M189 244Q200 254 211 244L200 258Z" fill="#f18b9b"/>
+      <path d="M200 258v9q-10 13-23 2M200 267q10 13 23 2" stroke="#6d557a" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M166 252L107 241M164 263L106 267M234 252L293 241M236 263L294 267" stroke="#866c7e" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="141" cy="241" r="15" fill="#ffb6b3" opacity=".45"/><circle cx="259" cy="241" r="15" fill="#ffb6b3" opacity=".45"/>
+    `},
+    {name:'Ракета', emoji:'🚀', color:'#b7c0ff', points:[[200,64],[218,80],[233,103],[244,130],[250,162],[252,190],[282,207],[303,270],[257,251],[238,268],[238,298],[217,283],[200,323],[183,283],[162,298],[162,268],[143,251],[97,270],[118,207],[148,190],[150,162],[156,130],[167,103],[182,80]], details:`
+      <circle cx="200" cy="170" r="33" fill="#fff" stroke="#7f8ddb" stroke-width="6"/><circle cx="200" cy="170" r="24" fill="#8bddfa"/>
+      <path d="M168 105Q200 72 232 105" fill="none" stroke="#fc8a9c" stroke-width="11" stroke-linecap="round"/>
+      <rect x="184" y="228" width="32" height="13" rx="6" fill="#fff" opacity=".8"/>
+      <path d="M184 324Q200 376 216 324Z" fill="#ff9b63"/><path d="M192 326Q200 359 208 326Z" fill="#ffe37b"/>
+      <path d="M86 99l4 13 13 4-13 4-4 13-4-13-13-4 13-4ZM320 134l3 11 11 3-11 3-3 11-3-11-11-3 11-3Z" fill="#ffc965"/>
+    `},
+    {name:'Метелик', emoji:'🦋', color:'#d9b6fb', points:[[198,183],[171,128],[129,87],[89,102],[68,151],[92,186],[133,205],[82,224],[61,266],[87,311],[134,298],[181,249],[199,224],[218,249],[265,298],[312,311],[337,266],[317,224],[268,205],[310,186],[334,151],[311,102],[269,87],[228,128]], details:`
+      <ellipse cx="132" cy="153" rx="36" ry="32" fill="#ffb4dd" opacity=".9"/><ellipse cx="268" cy="153" rx="36" ry="32" fill="#ffb4dd" opacity=".9"/>
+      <ellipse cx="127" cy="260" rx="22" ry="19" fill="#ffe38b"/><ellipse cx="273" cy="260" rx="22" ry="19" fill="#ffe38b"/>
+      <ellipse cx="199" cy="209" rx="13" ry="61" fill="#9879d9"/><circle cx="199" cy="155" r="15" fill="#8671d3"/>
+      <path d="M191 145Q170 106 157 118M207 145Q227 106 241 118" stroke="#8671d3" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <circle cx="193" cy="154" r="2.5" fill="white"/><circle cx="205" cy="154" r="2.5" fill="white"/>
+    `}
+  ];
+  const levels = $('levels'), pointsGroup = $('points'), drawing = $('drawing'), scene = $('scene');
+  let selected=0, current=0, dragging=false, soundOn=true, audioCtx=null;
+  const completed = new Set();
+  function pathFor(p){ return 'M'+p.map(x=>x.join(',')).join(' L')+' Z'; }
+  function note(hz){
+    if(!soundOn) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(!AudioCtx) return;
+      audioCtx = audioCtx || new AudioCtx();
+      if(audioCtx.state==='suspended') audioCtx.resume();
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain(), t=audioCtx.currentTime;
+      o.type='sine'; o.frequency.setValueAtTime(hz,t); o.frequency.exponentialRampToValueAtTime(hz*1.08,t+.12);
+      g.gain.setValueAtTime(.001,t); g.gain.exponentialRampToValueAtTime(.08,t+.018); g.gain.exponentialRampToValueAtTime(.001,t+.18);
+      o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.19);
+    } catch(e) {}
+  }
+  function toast(message){
+    const el=$('toast'); el.textContent=message; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+  function renderLevels(){
+    levels.innerHTML=pictures.map((pic,i)=>`<button type="button" class="level" data-index="${i}" aria-pressed="${selected===i}"><span class="em">${pic.emoji}</span><span class="nm">${pic.name}</span><span class="cnt">${pic.points.length} точок</span>${completed.has(i)?'<span class="done">✓</span>':''}</button>`).join('');
+    levels.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>start(Number(b.dataset.index))));
+  }
+  function render(){
+    const pic=pictures[selected], done=current===pic.points.length;
+    $('puzzleName').textContent=pic.emoji+' '+pic.name;
+    $('counter').textContent=current+' / '+pic.points.length;
+    $('bar').style.width=(current/pic.points.length*100)+'%';
+    $('hintline').textContent=done?'🎉 У тебе вийшло!':current===0?'Почни з точки 1 👆':'Шукай точку '+(current+1)+' 👀';
+    scene.classList.toggle('completed',done);
+    $('art').innerHTML=done?`<g class="finish-art"><path d="${pathFor(pic.points)}" fill="${pic.color}" stroke="#7261c4" stroke-width="4" stroke-linejoin="round"/>${pic.details}</g>`:'';
+    $('trail').setAttribute('points',pic.points.slice(0,current).map(p=>p.join(',')).join(' ')+(done?' '+pic.points[0].join(','):''));
+    pointsGroup.innerHTML=done?'':pic.points.map((p,i)=> {
+      if(i<current) return `<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="#715be7" stroke="#fff" stroke-width="2" />`;
+      const active=i===current;
+      return `<g data-point="${i}"><circle cx="${p[0]}" cy="${p[1]}" r="24" fill="transparent"/>${active?`<circle class="dot-next" cx="${p[0]}" cy="${p[1]}" r="19" fill="#d6c9ff" stroke="#a48af9" stroke-width="2"/>`:''}<circle cx="${p[0]}" cy="${p[1]}" r="13.5" fill="${active?'#7657e9':'#fff'}" stroke="${active?'#7657e9':'#abc0d9'}" stroke-width="2"/><text x="${p[0]}" y="${p[1]+4.6}" font-size="12.2" font-weight="900" fill="${active?'#fff':'#4c628b'}" text-anchor="middle" pointer-events="none">${i+1}</text></g>`;
+    }).join('');
+    $('preview').style.display='none';
+    $('help').textContent=done?'Чудово! Обирай наступний малюнок 🌈':'Торкайся цифр по черзі або веди пальчиком від точки до точки.';
+    renderLevels();
+  }
+  function confetti(){
+    const icons=['⭐','✨','💜','💛','🌟','🎉','💚','🩷'];
+    for(let i=0;i<18;i++) {
+      const s=document.createElement('span');s.className='spark';s.textContent=icons[i%icons.length];
+      s.style.setProperty('--dx',Math.round((Math.random()-.5)*340)+'px');
+      s.style.setProperty('--dy',Math.round((Math.random()-.5)*350)+'px');
+      s.style.setProperty('--rot',Math.round((Math.random()-.5)*180)+'deg');
+      s.style.animationDelay=(i*.05)+'s';scene.appendChild(s);s.addEventListener('animationend',()=>s.remove());
+    }
+  }
+  function advance(){
+    const pic=pictures[selected];
+    if(current>=pic.points.length) return;
+    current++;note(390+current*21);
+    render();
+    if(current===pic.points.length){ completed.add(selected);renderLevels(); toast('Вітаю! '+pic.emoji);confetti(); [620,790,980].forEach((f,i)=>setTimeout(()=>note(f),150+i*140)); }
+  }
+  function start(index){ selected=index;current=0;dragging=false;render(); }
+  function pos(evt){const rect=drawing.getBoundingClientRect();return [(evt.clientX-rect.left)*400/rect.width,(evt.clientY-rect.top)*400/rect.height];}
+  function dist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1]);}
+  function tryPoint(evt){
+    const pic=pictures[selected]; if(current>=pic.points.length) return false;
+    const xy=pos(evt), next=pic.points[current];
+    if(dist(xy,next)<27) {advance();return true;}
+    if(!dragging && pic.points.some((p,i)=>i>current && dist(p,xy)<21))toast('Спочатку цифра '+(current+1)+' 👀');
+    return false;
+  }
+  drawing.addEventListener('pointerdown',evt=>{
+    evt.preventDefault();dragging=true;try{drawing.setPointerCapture(evt.pointerId);}catch(e){}
+    tryPoint(evt);
+  });
+  drawing.addEventListener('pointermove',evt=>{
+    if(!dragging)return;
+    const pic=pictures[selected];if(current>=pic.points.length || current===0)return;
+    const xy=pos(evt);const prev=$('preview');prev.style.display='';prev.setAttribute('x1',pic.points[current-1][0]);prev.setAttribute('y1',pic.points[current-1][1]);prev.setAttribute('x2',xy[0]);prev.setAttribute('y2',xy[1]);
+    tryPoint(evt);
+  });
+  function release(){ dragging=false; $('preview').style.display='none'; }
+  drawing.addEventListener('pointerup',release);drawing.addEventListener('pointercancel',release);drawing.addEventListener('lostpointercapture',release);
+  $('hintBtn').addEventListener('click',()=>{ const pic=pictures[selected]; if(current===pic.points.length){toast('Усе готово! 🎉');return;}toast('Торкайся цифри '+(current+1)+' 💡');const group=pointsGroup.querySelector(`[data-point="${current}"]`);if(group){group.animate([{opacity:1},{opacity:.25},{opacity:1},{opacity:.25},{opacity:1}],{duration:650});}note(570); });
+  $('resetBtn').addEventListener('click',()=>{start(selected); toast('Починай з 1! ✨');});
+  $('nextBtn').addEventListener('click',()=>start((selected+1)%pictures.length));
+  $('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'🔊':'🔇';$('sound').setAttribute('aria-label',soundOn?'Вимкнути звуки':'Увімкнути звуки');if(soundOn)note(670);});
+  render();
+})();
+</script>
+</body>
+</html>
