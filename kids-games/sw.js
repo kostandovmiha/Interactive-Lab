@@ -1,5 +1,5 @@
 // Kids Playground: offline shell + all 28 Ukrainian voice clips.
-const CACHE = "kids-playground-v8";
+const CACHE = "kids-playground-v9";
 const SHELL = ["./", "./index.html", "./dots.html", "./icon.svg", "./manifest.webmanifest", "./audio/phrases.json"];
 const CLIPS = [
   "hello", "free",
