@@ -1,7 +1,9 @@
 import * as T from './vendor/three.module.min.js';
 import { makeCamera } from './camera.js';
 import { makeModels, placeModel } from './models.js';
-import { acceptsGround, buildWorld, height } from './world.js';
+import { canPlace, legacySeed, limit, makeLayout, pieces, worldModes } from './layout.js';
+import { readWorld, saveWorld } from './storage.js';
+import { buildWorld } from './world.js';
 
 const canvas = document.querySelector('#island');
 const loading = document.querySelector('#loading');
@@ -10,34 +12,16 @@ const reset = document.querySelector('#reset');
 const confirm = document.querySelector('#confirm');
 const view = document.querySelector('.view');
 const buttons = [...document.querySelectorAll('[data-piece]')];
-const storageKey = 'magic-island-layout-v1';
+const worldButton = document.querySelector('#world');
+const worldLabel = document.querySelector('#world-label');
+const worldMenu = document.querySelector('#world-menu');
+const worldOptions = [...worldMenu.querySelectorAll('button[value]')];
+const confirmTitle = document.querySelector('#confirm-title');
+const confirmDetail = document.querySelector('#confirm-detail');
+const confirmAction = document.querySelector('#confirm-action');
 const defaultHint = 'Обери, кого чи що додати';
-const limit = 18;
-const pieces = {
-  tree: { radius: .78, scale: .80, prompt: 'Обери місце для дерева', added: 'На острові виросло дерево' },
-  house: { radius: .99, scale: .72, prompt: 'Обери місце для будиночка', added: 'На острові з’явився будиночок' },
-  bunny: { radius: .48, scale: .91, prompt: 'Обери місце для зайчика', added: 'На острів завітав зайчик' },
-};
-const originals = [
-  ['house', -2.18, -1.41, 1.12, .16, 1.52],
-  ['blossom', -3.79, 1.06, 1.18, .18, 1.08],
-  ['tree', -4.00, -1.95, 1.18, .50, 1.11],
-  ['lime', -.13, -2.89, 1.13, .46, 1.05],
-  ['tree', 3.83, -1.40, 1.01, .18, .96],
-  ['pine', -1.24, -3.40, 1.12, -.10, .59],
-  ['pine', -2.93, -3.13, .95, .66, .56],
-  ['pine', -.58, -3.65, .80, .52, .45],
-  ['pine', 2.87, -2.45, .93, .12, .58],
-  ['pine', 3.42, -2.86, .73, .27, .45],
-  ['lime', -4.76, -.60, .67, .45, .65],
-  ['bunny', -.80, .61, 1.10, .51, .48],
-  ['bunny', 3.57, .99, .91, .76, .40],
-];
-const decor = [
-  [-3.54, -.49, .48], [-.40, -.76, .57], [3.77, -1.89, .53],
-  [-4.96, -.61, .57], [-5.02, 1.19, .45], [-3.93, 2.87, .42],
-  [4.50, 1.82, .60], [4.43, -2.20, .58], [-.30, 3.40, .28],
-];
+let storage;
+try { storage = window.localStorage; } catch { /* The island is still playable. */ }
 let renderer;
 try {
   renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power', alpha: false });
@@ -60,7 +44,7 @@ function start() {
   sun.position.set(-5.8, 9.5, 4.2);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  Object.assign(sun.shadow.camera, { left: -7.8, right: 7.8, top: 6.3, bottom: -6.3, near: .8, far: 25 });
+  Object.assign(sun.shadow.camera, { left: -9.7, right: 9.7, top: 7.8, bottom: -7.8, near: .8, far: 25 });
   sun.shadow.camera.updateProjectionMatrix();
   sun.shadow.normalBias = .031;
   sun.shadow.bias = -.00015;
@@ -70,19 +54,18 @@ function start() {
   fill.position.set(6, 4.5, -4);
   scene.add(fill);
 
-  const world = buildWorld(scene);
+  let layout, world;
   const models = makeModels();
   const controls = makeCamera(canvas, view, tap, requestDraw);
   const { camera } = controls;
   const coarsePointer = matchMedia('(pointer: coarse)');
   const objects = new T.Group();
   const markers = new T.Group();
-  const markerGeo = new T.RingGeometry(.143, .195, 24);
+  const markerGeo = new T.RingGeometry(.19, .257, 24);
   const markerMaterial = new T.MeshBasicMaterial({
     color: '#fff4d4', transparent: true, opacity: .85, depthWrite: false, side: T.DoubleSide,
   });
   const contacts = new T.Group();
-  scene.add(objects, contacts, markers);
   const entries = [];
   const saved = [];
   const ray = new T.Raycaster();
@@ -92,7 +75,6 @@ function start() {
   cursor.rotation.x = -Math.PI / 2;
   cursor.renderOrder = 4;
   cursor.visible = false;
-  scene.add(cursor);
 
   let selected = null;
   let raf = 0;
@@ -103,69 +85,109 @@ function start() {
   let keyX = .48, keyZ = 2.7;
   let slowFrames = 0;
   let resolutionScale = 1;
+  let onConfirm = null;
 
-  function add(type, x, z, size, yaw, radius, custom, appear = false) {
-    const y = height(x, z);
+  function add({ type, x, z, size, yaw, radius }, custom = false, appear = false) {
+    const y = layout.height(x, z);
     const model = placeModel(models[type], x, y, z, size, yaw);
     const shadow = world.makeContact(x, z, radius * (type === 'house' ? 1.30 : 1.11));
     contacts.add(shadow);
     objects.add(model);
-    const entry = { model, shadow, type, x, y, z, size, radius, custom, appear: appear && !reducedMotion.matches ? time : null, react: null, lit: false };
+    const entry = {
+      model, shadow, type, x, y, z, size, radius, custom, lit: false,
+      canopy: model.getObjectByName('canopy'), door: model.getObjectByName('door'),
+      appear: appear && !reducedMotion.matches ? time : null, react: null,
+    };
     entries.push(entry);
-    if (entry.appear !== null) model.scale.setScalar(size * .01);
+    if (entry.appear !== null) model.scale.setScalar(size * .06);
     else renderer.shadowMap.needsUpdate = true;
-    if (custom) saved.push({ type, x, z });
-    return entry;
   }
 
-  function canPlace(type, x, z) {
-    const { radius } = pieces[type];
-    if (!acceptsGround(x, z, radius)) return false;
-    const clear = (px, pz, otherRadius) => Math.hypot(px - x, pz - z) > radius + otherRadius + .045;
-    return entries.every(item => clear(item.x, item.z, item.radius)) && decor.every(obstacle => clear(...obstacle));
-  }
-
-  function addSaved(type, x, z, appear = false) {
+  function addSaved(type, x, z, { appear = false, legacy = false } = {}) {
     const piece = pieces[type];
-    add(type, x, z, piece.scale, .39 + .19 * Math.sin(x * 3 + z), piece.radius, true, appear);
+    add({ type, x, z, size: piece.scale, yaw: .39 + .19 * Math.sin(x * 3 + z), radius: piece.radius }, true, appear);
+    saved.push(legacy ? { type, x, z, legacy } : { type, x, z });
   }
 
-  function restore() {
-    try {
-      const data = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
-      if (!Array.isArray(data)) return;
-      for (const item of data.slice(0, limit)) {
-        if (item && Object.hasOwn(pieces, item.type) && Number.isFinite(item.x) &&
-            Number.isFinite(item.z) && canPlace(item.type, item.x, item.z)) addSaved(item.type, item.x, item.z);
-      }
-    } catch {
-      // Unavailable storage or invalid data still permits the current session.
+  function removeEntries(customOnly) {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const entry = entries[i];
+      if (customOnly && !entry.custom) continue;
+      objects.remove(entry.model);
+      contacts.remove(entry.shadow);
+      entry.shadow.geometry.dispose();
+      entry.model.userData.windows?.dispose();
+      entries.splice(i, 1);
     }
+    saved.length = 0;
+    reset.disabled = true;
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  function loadIsland({ seed, mode, placements = [] }) {
+    if (world) {
+      removeEntries(false);
+      scene.remove(world.root);
+      world.dispose();
+    }
+    layout = makeLayout(seed, mode);
+    world = buildWorld(layout);
+    world.root.add(objects, contacts, markers, cursor);
+    scene.add(world.root);
+    renderer.shadowMap.needsUpdate = true;
+    controls.frame(layout);
+    controls.reset();
+    for (const starter of layout.starters) add(starter);
+    for (const item of placements) {
+      if (!item || !Object.hasOwn(pieces, item.type)) continue;
+      const { type, x, z } = item;
+      const legacy = seed === legacySeed && mode === 'ready' && item.legacy === true;
+      if (canPlace(layout, entries, type, x, z, legacy)) addSaved(type, x, z, { legacy });
+    }
+    keyX = .48;
+    keyZ = 2.7;
+    cursor.visible = false;
+    worldLabel.textContent = mode === 'ready' ? 'Готовий' : 'Порожній';
+    worldButton.setAttribute('aria-label', 'Обрати острів · ' + worldLabel.textContent);
+    for (const button of worldOptions) button.disabled = button.value === mode;
+    reset.disabled = !saved.length;
+    setSelected(null);
+    resize();
   }
 
   function persist() {
     try {
-      if (saved.length) localStorage.setItem(storageKey, JSON.stringify(saved));
-      else localStorage.removeItem(storageKey);
+      saveWorld(storage, layout.seed, layout.mode, saved);
     } catch {
       hint.textContent = 'Зберегти зміни в цьому браузері не вдалося';
     }
   }
 
+  function atLimit(type) {
+    return saved.length >= limit || saved.filter(item => item.type === type).length >= pieces[type].max;
+  }
+
   function showAvailableSpots() {
     markers.clear();
-    if (!selected || saved.length >= limit) return;
-    for (let row = 0; row < 9 && markers.children.length < 8; row++) {
-      const z = 2.55 - row * .64;
-      for (let col = 0; col < 13 && markers.children.length < 8; col++) {
-        const x = -4.62 + (col + (row % 2) * .5) * .74;
-        if (markers.children.some(mark => Math.hypot(x - mark.position.x, z - mark.position.z) < 1.18)) continue;
-        if (!canPlace(selected, x, z)) continue;
-        const marker = new T.Mesh(markerGeo, markerMaterial);
-        marker.rotation.x = -Math.PI / 2;
-        marker.position.set(x, height(x, z) + .073, z);
-        markers.add(marker);
+    if (!selected || atLimit(selected)) return;
+    const candidates = [];
+    const step = .55;
+    for (let row = 0, z = layout.rz * .86; z >= -layout.rz * .86; z -= step, row++) {
+      for (let x = (row % 2) * step / 2 - layout.rx * .86; x <= layout.rx * .86; x += step) {
+        if (canPlace(layout, entries, selected, x, z)) {
+          candidates.push({ x, z, spread: 2.7 - Math.hypot(x * .83, z - 1.7) * .16 });
+        }
       }
+    }
+    for (let i = 0; i < 10 && candidates.length; i++) {
+      candidates.sort((a, b) => b.spread - a.spread);
+      const { x, z } = candidates.shift();
+      if (markers.children.some(mark => Math.hypot(x - mark.position.x, z - mark.position.z) < .93)) break;
+      const marker = new T.Mesh(markerGeo, markerMaterial);
+      marker.rotation.x = -Math.PI / 2;
+      marker.position.set(x, layout.height(x, z) + .073, z);
+      markers.add(marker);
+      for (const point of candidates) point.spread = Math.min(point.spread, Math.hypot(point.x - x, point.z - z));
     }
   }
 
@@ -174,6 +196,7 @@ function start() {
     hint.textContent = message;
     for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.piece === selected));
     showAvailableSpots();
+    if (type && atLimit(type)) hint.textContent = 'Тут уже багато таких додавань';
     requestDraw();
   }
 
@@ -192,15 +215,15 @@ function start() {
       if (entry) react(entry);
       return;
     }
-    if (saved.length >= limit) {
+    if (atLimit(selected)) {
       setSelected(null, 'На острові вже багато друзів і будиночків');
       return;
     }
-    if (!canPlace(selected, x, z)) {
+    if (!canPlace(layout, entries, selected, x, z)) {
       hint.textContent = 'Знайди вільне місце на галявині';
       return;
     }
-    addSaved(selected, x, z, true);
+    addSaved(selected, x, z, { appear: true });
     setSelected(null, pieces[selected].added);
     reset.disabled = false;
     persist();
@@ -217,13 +240,17 @@ function start() {
     if (hit && (!ground || hit.distance < ground.distance)) {
       if (selected) hint.textContent = 'Знайди вільне місце на галявині';
       else {
-        const entry = entries.find(item => item.model === hit.object.parent);
+        let owner = hit.object;
+        while (owner.parent !== objects) owner = owner.parent;
+        const entry = entries.find(item => item.model === owner);
         if (entry) react(entry);
       }
       return;
     }
-    if (ground) touchGround(ground.point.x, ground.point.z);
-    else if (selected) hint.textContent = 'Знайди вільне місце на галявині';
+    if (ground) {
+      const point = world.root.worldToLocal(ground.point);
+      touchGround(point.x, point.z);
+    } else if (selected) hint.textContent = 'Знайди вільне місце на галявині';
   }
 
   function resize() {
@@ -268,17 +295,18 @@ function start() {
       for (const entry of entries) {
         const { model, type, size, y, x, z, appear } = entry;
         if (appear !== null) {
-          const p = isStill ? 1 : Math.min(1, (time - appear) / .52);
+          const p = isStill ? 1 : Math.min(1, (time - appear) / (type === 'house' ? .65 : .52));
           const spring = 1 + 2.16 * (p - 1) ** 3 + 1.16 * (p - 1) ** 2;
-          model.scale.setScalar(size * Math.max(.012, spring));
+          model.scale.setScalar(size * Math.max(.06, spring));
           if (p === 1) {
             entry.appear = null;
             renderer.shadowMap.needsUpdate = true;
           }
         }
-        const p = entry.react === null || isStill ? 1 : Math.min(1, (time - entry.react) / .69);
+        const duration = entry.door ? 1.12 : .74;
+        const p = entry.react === null || isStill ? 1 : Math.min(1, (time - entry.react) / duration);
         if (p === 1) entry.react = null;
-        const bounce = Math.sin(p * Math.PI);
+        const bounce = p === 1 ? 0 : Math.sin(p * Math.PI);
         if (type === 'bunny') {
           const phase = time * 1.65 + x * 1.4 + z;
           const idleCycle = (time + (x + 6) * .88) % 10.8;
@@ -289,10 +317,14 @@ function start() {
           model.position.y = y + lift;
           model.rotation.x = -lift * .17 + breath;
           model.scale.y = model.scale.x * (1 + breath + lift * .12);
-        } else if (type !== 'house') {
-          const breeze = isStill ? 0 : .018 * Math.sin(time * .84 + x + z);
-          model.rotation.x = isStill ? 0 : .012 * Math.sin(time * .66 - z);
-          model.rotation.z = breeze + Math.sin(p * Math.PI * 3) * bounce * .14;
+        } else if (entry.canopy) {
+          const phase = x * .93 - z * .78;
+          const wind = isStill ? 0 : .064 * Math.sin(time * 1.45 + phase) + .016 * Math.sin(time * 2.51 - phase);
+          entry.canopy.rotation.x = isStill ? 0 : .036 * Math.sin(time * 1.13 + phase);
+          entry.canopy.rotation.z = wind + Math.sin(p * Math.PI * 2.5) * bounce * .30;
+        } else if (entry.door) {
+          const swing = T.MathUtils.smoothstep(p, 0, .26) * (1 - T.MathUtils.smoothstep(p, .46, 1));
+          entry.door.rotation.y = -.82 * swing;
         }
       }
       renderer.render(scene, camera);
@@ -307,10 +339,10 @@ function start() {
     last = 0;
   }
 
-  for (const original of originals) add(...original, false);
-  restore();
-  reset.disabled = !saved.length;
   view.hidden = false;
+  worldButton.disabled = false;
+  loadIsland(readWorld(storage));
+  if (saved.some(item => item.legacy)) persist();
   for (const button of buttons) {
     button.disabled = false;
     button.addEventListener('click', () => setSelected(selected === button.dataset.piece ? null : button.dataset.piece));
@@ -320,9 +352,9 @@ function start() {
     if (Object.hasOwn(directions, event.key)) {
       event.preventDefault();
       const [dx, dz] = directions[event.key];
-      keyX = T.MathUtils.clamp(keyX + dx, -5.5, 5.5);
-      keyZ = T.MathUtils.clamp(keyZ + dz, -3.6, 3.8);
-      cursor.position.set(keyX, height(keyX, keyZ) + .08, keyZ);
+      keyX = T.MathUtils.clamp(keyX + dx, -layout.rx, layout.rx);
+      keyZ = T.MathUtils.clamp(keyZ + dz, -layout.rz, layout.rz);
+      cursor.position.set(keyX, layout.height(keyX, keyZ) + .08, keyZ);
       cursor.visible = true;
       requestDraw();
     } else if (event.key === 'Enter' || event.key === ' ') {
@@ -332,28 +364,50 @@ function start() {
   });
   canvas.addEventListener('blur', () => { cursor.visible = false; requestDraw(); });
 
-  reset.addEventListener('click', () => {
+  function ask(title, detail, actionLabel, action, trigger) {
+    confirmTitle.textContent = title;
+    confirmDetail.textContent = detail;
+    confirmAction.textContent = actionLabel;
     confirm.returnValue = '';
+    onConfirm = { action, trigger };
     confirm.showModal();
+  }
+
+  reset.addEventListener('click', () => {
+    ask('Очистити мої додавання?', 'Дерева, будиночки й зайчики, які ти додав, зникнуть.', 'Очистити', () => {
+      removeEntries(true);
+      setSelected(null);
+      persist();
+    }, reset);
+  });
+
+  worldButton.addEventListener('click', () => {
+    worldMenu.returnValue = '';
+    worldMenu.showModal();
+  });
+  worldMenu.addEventListener('close', () => {
+    const choice = worldMenu.returnValue;
+    const regenerate = choice === 'regenerate';
+    if (!regenerate && !worldModes.includes(choice)) return;
+    const mode = regenerate ? layout.mode : choice;
+    const title = regenerate ? 'Створити інший острів?' : mode === 'empty' ? 'Відкрити порожній острів?' : 'Відкрити готовий світ?';
+    const detail = saved.length ? 'Твоя поточна розстановка зникне.' : 'Відкриється новий світ.';
+    ask(title, detail, 'Відкрити', () => {
+      let seed = layout.seed;
+      if (regenerate) {
+        const value = crypto.getRandomValues(new Uint32Array(1))[0];
+        seed = value === seed || value === legacySeed ? ((seed + 1) >>> 0 || 1) : value;
+      }
+      loadIsland({ seed, mode });
+      persist();
+    }, worldButton);
   });
   confirm.addEventListener('close', () => {
-    if (confirm.returnValue !== 'clear') return;
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const entry = entries[i];
-      if (!entry.custom) continue;
-      objects.remove(entry.model);
-      contacts.remove(entry.shadow);
-      entry.shadow.geometry.dispose();
-      entry.model.userData.windows?.dispose();
-      entries.splice(i, 1);
-    }
-    saved.length = 0;
-    setSelected(null);
-    buttons[0].focus();
-    reset.disabled = true;
-    renderer.shadowMap.needsUpdate = true;
-    persist();
-    requestDraw();
+    const pending = onConfirm;
+    onConfirm = null;
+    if (!pending) return;
+    if (confirm.returnValue === 'apply') pending.action();
+    (pending.trigger.disabled ? buttons[0] : pending.trigger).focus();
   });
 
   new ResizeObserver(resize).observe(canvas);
@@ -376,7 +430,6 @@ function start() {
     loading.hidden = true;
     requestDraw();
   });
-  resize();
   loading.hidden = true;
   requestDraw();
 }

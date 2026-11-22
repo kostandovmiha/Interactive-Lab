@@ -19,6 +19,8 @@ export function makeCamera(canvas, view, onTap, requestDraw) {
   let zoom = 1, targetZoom = 1;
   let gesture = null;
   let changed = true;
+  let coast = [];
+  let worldScale = 1;
 
   function setView(nextTurn, nextZoom) {
     targetTurn = clamp(nextTurn, -orbitLimit, orbitLimit);
@@ -35,7 +37,26 @@ export function makeCamera(canvas, view, onTap, requestDraw) {
   right.addEventListener('click', () => setView(targetTurn + .20, targetZoom));
   zoomOut.addEventListener('click', () => setView(targetTurn, targetZoom - .25));
   zoomIn.addEventListener('click', () => setView(targetTurn, targetZoom + .25));
-  fit.addEventListener('click', () => setView(0, 1));
+  const reset = () => setView(0, 1);
+  fit.addEventListener('click', reset);
+  // Some touch browsers suppress the next synthesized click just after a swipe.
+  let fitTouch = null;
+  fit.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'touch' && event.isPrimary) {
+      fitTouch = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    }
+  });
+  fit.addEventListener('pointermove', event => {
+    if (fitTouch?.id === event.pointerId &&
+        Math.hypot(event.clientX - fitTouch.x, event.clientY - fitTouch.y) > tapSlop) fitTouch = null;
+  });
+  fit.addEventListener('pointerup', event => {
+    if (fitTouch?.id !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - fitTouch.x, event.clientY - fitTouch.y);
+    fitTouch = null;
+    if (distance <= tapSlop) reset();
+  });
+  fit.addEventListener('lostpointercapture', () => { fitTouch = null; });
   zoomOut.disabled = true;
 
   function resize(width, height) {
@@ -43,6 +64,17 @@ export function makeCamera(canvas, view, onTap, requestDraw) {
     portrait = aspect < 1;
     changed = true;
     return portrait;
+  }
+
+  function frame(layout) {
+    const { rotation, rx, rz } = layout;
+    const cos = Math.cos(rotation), sin = Math.sin(rotation);
+    worldScale = Math.max(rx / 6.25, rz / 4.48);
+    coast = Array.from({ length: 64 }, (_, i) => {
+      const [x, z] = layout.coast(i * Math.PI / 32, 1.055);
+      return [x * cos + z * sin, z * cos - x * sin];
+    });
+    changed = true;
   }
 
   function update(dt, instant) {
@@ -56,8 +88,10 @@ export function makeCamera(canvas, view, onTap, requestDraw) {
     }
     const angle = (portrait ? .89 : .43) + turn;
     // A modest pull back at the ends of the orbit keeps the full coast in frame.
-    const fitWidth = portrait ? 12.05 + Math.max(0, -turn) * 3.2 : 13.4;
-    const halfHeight = Math.max(portrait ? 11 : 9.52, fitWidth / aspect) / 2;
+    const sin = Math.sin(angle), cos = Math.cos(angle);
+    const shoreWidth = 2 * coast.reduce((max, [x, z]) => Math.max(max, Math.abs(x * cos - z * sin)), 0);
+    const fitWidth = Math.max((portrait ? 12.05 : 13.4) * worldScale, shoreWidth + .4);
+    const halfHeight = Math.max((portrait ? 11 : 9.52) * worldScale, fitWidth / aspect) / 2;
     camera.left = -halfHeight * aspect;
     camera.right = -camera.left;
     camera.top = halfHeight;
@@ -123,5 +157,5 @@ export function makeCamera(canvas, view, onTap, requestDraw) {
     setView(targetTurn, targetZoom * Math.exp(-.0018 * event.deltaY * unit));
   }, { passive: false });
 
-  return { camera, resize, update };
+  return { camera, resize, update, frame, reset };
 }

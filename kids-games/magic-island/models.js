@@ -135,6 +135,7 @@ export function bake(source, { shadow = true } = {}) {
     geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
     if (colors.length) geo.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
     geo.setIndex(indices);
+    geo.computeBoundingBox();
     const item = new T.Mesh(geo, material);
     item.castShadow = shadow;
     item.receiveShadow = true;
@@ -143,15 +144,25 @@ export function bake(source, { shadow = true } = {}) {
   return model;
 }
 
+function hingedParts(source, name, x, y, z) {
+  const pivot = new T.Group();
+  pivot.name = name;
+  pivot.position.set(x, y, z);
+  const parts = bake(source);
+  parts.position.set(-x, -y, -z);
+  pivot.add(parts);
+  return pivot;
+}
+
 function orchard(colors, fruit) {
-  const tree = new T.Group();
+  const tree = new T.Group(), canopy = new T.Group();
   const bark = '#9d6646';
-  line(tree, bark, [[0, -.08, 0], [-.055, .30, .015], [.02, .63, .025], [.15, 1.22, -.05]], .115);
+  line(tree, bark, [[0, -.08, 0], [-.055, .30, .015], [.02, .63, .025], [.06, .93, .012]], .115);
   for (const root of [[-.29, 0, -.06], [.25, 0, -.13], [.06, 0, .27]]) {
     branch(tree, bark, [0, .13, 0], root, .055);
   }
-  branch(tree, '#a8754e', [-.015, .42, .01], [-.43, 1.09, .15], .067);
-  branch(tree, '#a8754e', [.035, .57, .01], [.49, 1.12, .15], .065);
+  branch(canopy, '#a8754e', [-.015, .42, .01], [-.43, 1.09, .15], .067);
+  branch(canopy, '#a8754e', [.035, .57, .01], [.49, 1.12, .15], .065);
   const clumps = [
     [-.4, 1.08, .09, .49, .48, .49],
     [.37, 1.16, .05, .58, .52, .52],
@@ -162,23 +173,25 @@ function orchard(colors, fruit) {
     [.43, 1.83, -.10, .31, .29, .29],
   ];
   clumps.forEach((shape, i) => {
-    const part = foliage(tree, colors[i % colors.length], ...shape);
+    const part = foliage(canopy, colors[i % colors.length], ...shape);
     part.rotation.set(.4 * i, .7 * i, .2 * i);
   });
   if (fruit) {
     for (const [x, y, z] of [[-.55, 1.24, .48], [-.39, 1.58, .68], [.22, 1.29, .72],
       [.50, 1.43, .60], [.65, 1.18, .37], [.13, 1.67, .73], [-.74, 1.47, .18]]) {
-      oval(tree, fruit, x, y, z, .075, .069, .071);
-      const leaf = oval(tree, '#7a9b4c', x + .032, y + .068, z, .042, .021, .02);
+      oval(canopy, fruit, x, y, z, .075, .069, .071);
+      const leaf = oval(canopy, '#7a9b4c', x + .032, y + .068, z, .042, .021, .02);
       leaf.rotation.z = .55;
     }
   }
-  return bake(tree);
+  const model = bake(tree);
+  model.add(hingedParts(canopy, 'canopy', .02, .60, .02));
+  return model;
 }
 
 function pine() {
-  const tree = new T.Group();
-  branch(tree, '#87583e', [0, -.05, 0], [.03, 1.65, 0], .09);
+  const tree = new T.Group(), canopy = new T.Group();
+  branch(tree, '#87583e', [0, -.05, 0], [.018, .81, 0], .09);
   const rng = random(29);
   for (const [i, [y, width]] of [[.64, .56], [1.03, .49], [1.40, .37], [1.72, .27]].entries()) {
     const profile = [[0, -.25], [.57, -.28], [.91, -.21], [1, -.10], [.81, .03],
@@ -191,9 +204,11 @@ function pine() {
       verts.setXYZ(k, x * wave, verts.getY(k) + .04 * Math.cos(a * 5 + i * .8) * Math.hypot(x, z) / width, z * wave);
     }
     tier.computeVertexNormals();
-    mesh(tree, tier, ['#397c64', '#448d6c', '#579b71', '#6aaa78'][i], rng() * .075, y, 0, 1, 1, 1);
+    mesh(canopy, tier, ['#397c64', '#448d6c', '#579b71', '#6aaa78'][i], rng() * .075, y, 0, 1, 1, 1);
   }
-  return bake(tree);
+  const model = bake(tree);
+  model.add(hingedParts(canopy, 'canopy', 0, .48, 0));
+  return model;
 }
 
 function arch(width, height, depth, bevel = .023) {
@@ -253,9 +268,11 @@ function cottage() {
     for (const z of [-.725, .725]) block(h, trim, x, .735, z, .085, 1.29, .087);
   }
   mesh(h, arch(.63, .91, .07), trim, -.04, .20, .751, 1, 1, 1);
-  mesh(h, arch(.50, .81, .085), teal, -.04, .23, .782, 1, 1, 1);
-  for (const x of [-.168, -.045, .078]) block(h, '#508579', x, .57, .891, .018, .56, .014);
-  oval(h, '#edbf68', .108, .61, .91, .045, .045, .044);
+  mesh(h, arch(.49, .80, .012), '#86674d', -.04, .23, .819, 1, 1, 1);
+  const door = new T.Group();
+  mesh(door, arch(.50, .81, .038), teal, -.04, .23, .835, 1, 1, 1);
+  for (const x of [-.168, -.045, .078]) block(door, '#508579', x, .57, .891, .018, .56, .014);
+  oval(door, '#edbf68', .108, .61, .91, .045, .045, .044);
   block(h, '#d1ae85', -.045, .165, 1.02, .65, .13, .27);
   block(h, '#d9c4a3', -.045, .075, 1.17, .75, .12, .26);
 
@@ -285,6 +302,7 @@ function cottage() {
     block(h, '#e4bf87', x, .41, z, .23, .10, .038).rotation.y = yaw;
   }
   const model = bake(h);
+  model.add(hingedParts(door, 'door', -.29, .23, .86));
   model.userData.glass = glass.uuid;
   return model;
 }
