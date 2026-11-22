@@ -1,0 +1,132 @@
+:root {
+  color-scheme: light;
+  font-family: ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+  color: #294939;
+  background: #f8f6e9;
+  --paper: #fffdf4;
+  --ink: #294939;
+  --edge: #dce3d0;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; overflow: hidden; overscroll-behavior: none; }
+button, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 3px solid #305f50; outline-offset: 3px; }
+.game {
+  display: grid;
+  grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
+  height: 100dvh;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  gap: 10px;
+}
+.top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.heading { display: flex; align-items: center; gap: 13px; }
+.heading img { display: block; flex: none; }
+h1 { margin: 0; font: 700 clamp(25px, 3.35vw, 53px)/.99 Georgia, serif; letter-spacing: -.045em; }
+.control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 64px;
+  min-height: 50px;
+  padding: 0 15px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid #cbded0;
+  border-radius: 18px;
+  box-shadow: 0 2px 0 #dce3d2;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.control:disabled { opacity: .5; box-shadow: none; }
+.control svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.85; stroke-linecap: round; stroke-linejoin: round; }
+.back { justify-self: start; }
+.reset { justify-self: end; }
+.stage {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #8bd3cb;
+  border: 1px solid #a9d4bf;
+  border-radius: 31px;
+  box-shadow: 0 6px 18px #33584715;
+}
+.stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 54px #30797821; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+canvas:focus-visible { outline-offset: -4px; }
+.view { position: absolute; z-index: 1; right: 14px; bottom: 14px; display: flex; gap: 7px; }
+.view .control { padding: 0; min-width: 58px; min-height: 56px; background: #fffcf0ed; box-shadow: 0 3px 0 #30666032; }
+.loading { position: absolute; margin: 0; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(85%, 24rem); text-align: center; padding: 14px; border-radius: 16px; background: var(--paper); }
+.dock { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
+.dock p { margin: 0; text-align: center; font-size: 14px; line-height: 1.2; font-weight: 700; }
+.tools { display: flex; gap: 10px; }
+.piece {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 64px;
+  min-width: 130px;
+  padding: 5px 15px 6px 11px;
+  border: 1px solid var(--frame);
+  border-radius: 19px;
+  background: var(--tint);
+  color: #30483c;
+  box-shadow: 0 3px 0 var(--frame);
+  font-size: 14px;
+  font-weight: 800;
+}
+.piece svg { width: 38px; height: 38px; filter: drop-shadow(0 2px 1px #503f441e); }
+.piece.tree { --tint: #e6efda; --frame: #c5d9b9; }
+.piece.house { --tint: #f8e7d6; --frame: #e9cbb3; }
+.piece.bunny { --tint: #eee7f5; --frame: #d7c9e5; }
+.piece:disabled { opacity: .55; }
+.piece[aria-pressed="true"] { border-color: #355d48; box-shadow: 0 0 0 2px #355d48, 0 4px 0 #355d48; }
+@media (hover: hover) {
+  .control:hover:not(:disabled), .piece:hover:not(:disabled) { filter: brightness(.975); }
+}
+dialog { max-width: min(90vw, 385px); padding: 25px; border: 1px solid var(--edge); border-radius: 26px; background: var(--paper); color: var(--ink); box-shadow: 0 15px 45px #203d3750; }
+dialog::backdrop { background: #24483c68; }
+dialog h2 { margin: 0; font-size: 22px; }
+dialog p { line-height: 1.45; font-size: 15px; }
+.dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dialog-actions button { flex: 1; min-height: 52px; padding: 7px 10px; border: 1px solid #c5d9b9; border-radius: 14px; background: #e6efda; color: var(--ink); font-weight: 800; }
+.dialog-actions button[value="clear"] { background: #f8e7d6; border-color: #e9cbb3; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .game { padding-inline: max(9px, env(safe-area-inset-left)) max(9px, env(safe-area-inset-right)); }
+  .top { grid-template-columns: auto 1fr auto; gap: 8px; }
+  .heading { justify-content: center; text-align: center; }
+  .heading img { display: none; }
+  .control { min-width: 48px; padding: 0 8px; }
+  .control span { display: none; }
+  .stage { border-radius: 25px; }
+  .view .control { min-width: 56px; }
+  .tools { width: min(100%, 390px); gap: 7px; }
+  .piece { flex: 1; min-width: 0; flex-direction: column; gap: 1px; padding: 4px 3px 7px; font-size: 12px; }
+  .piece svg { width: 35px; height: 35px; }
+}
+@media (max-height: 510px) and (orientation: landscape) {
+  .game { grid-template: auto minmax(0, 1fr) / minmax(0, 1fr) 126px; gap: 8px; }
+  .top { grid-column: 1 / -1; }
+  .heading img { width: 37px; height: 37px; }
+  h1 { font-size: clamp(24px, 4vw, 35px); }
+  .top .control { min-height: 44px; }
+  .stage { border-radius: 23px; }
+  .dock { gap: 8px; }
+  .dock p { font-size: 12px; min-height: 2.4em; display: grid; place-items: center; }
+  .tools { width: 100%; flex-direction: column; gap: 7px; }
+  .piece { min-width: 0; min-height: 62px; gap: 5px; padding: 3px 6px; flex-direction: row; font-size: 12px; }
+  .piece svg { width: 30px; height: 30px; }
+  .view { right: 8px; bottom: 8px; }
+  .view .control { min-width: 50px; min-height: 46px; border-radius: 14px; }
+}
+@media (max-height: 360px) and (orientation: landscape) {
+  .piece { min-height: 50px; flex-basis: 50px; }
+}
