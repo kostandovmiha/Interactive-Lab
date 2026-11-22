@@ -19,14 +19,22 @@
 
     <section class="stage" aria-label="Ігрове поле">
       <canvas id="island" tabindex="0" aria-label="Тривимірний острів" aria-describedby="keyboard"></canvas>
-      <span id="keyboard" class="sr-only">Стрілками переміщуй позначку по землі. Натисни Enter або пробіл, щоб торкнутися острова.</span>
+      <span id="keyboard" class="sr-only">Стрілками переміщуй позначку по землі. Натисни Enter або пробіл, щоб торкнутися острова. Кнопки після поля повертають і наближають острів.</span>
       <p class="loading" id="loading" role="status">Острів прокидається…</p>
       <noscript><p class="loading">Увімкни JavaScript у браузері, щоб відкрити острів.</p></noscript>
-      <div class="view" role="group" aria-label="Повернути острів" hidden>
+    </section>
+
+    <div class="view" role="group" aria-label="Керування камерою" hidden>
+      <div class="view-pair">
         <button type="button" id="left" class="control" aria-label="Повернути острів ліворуч"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 16a7 7 0 0 0-7-7H5m4-4L5 9l4 4"/></svg></button>
         <button type="button" id="right" class="control" aria-label="Повернути острів праворуч"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16a7 7 0 0 1 7-7h7m-4-4 4 4-4 4"/></svg></button>
       </div>
-    </section>
+      <div class="view-pair">
+        <button type="button" id="zoom-out" class="control" aria-label="Віддалити острів"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <button type="button" id="zoom-in" class="control" aria-label="Наблизити острів"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-7-7v14"/></svg></button>
+      </div>
+      <button type="button" id="fit" class="control" aria-label="Показати весь острів"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v4m10-4h4v4M5 15v4h4m10-4v4h-4"/><circle cx="12" cy="12" r="1.5"/></svg></button>
+    </div>
 
     <section class="dock" aria-label="Додати на острів">
       <p id="hint" role="status">Обери, кого чи що додати</p>

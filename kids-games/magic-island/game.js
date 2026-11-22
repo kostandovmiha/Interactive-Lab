@@ -1,4 +1,5 @@
 import * as T from './vendor/three.module.min.js';
+import { makeCamera } from './camera.js';
 import { makeModels, placeModel } from './models.js';
 import { acceptsGround, buildWorld, height } from './world.js';
 
@@ -8,8 +9,6 @@ const hint = document.querySelector('#hint');
 const reset = document.querySelector('#reset');
 const confirm = document.querySelector('#confirm');
 const view = document.querySelector('.view');
-const left = document.querySelector('#left');
-const right = document.querySelector('#right');
 const buttons = [...document.querySelectorAll('[data-piece]')];
 const storageKey = 'magic-island-layout-v1';
 const defaultHint = 'Обери, кого чи що додати';
@@ -17,7 +16,7 @@ const limit = 18;
 const pieces = {
   tree: { radius: .78, scale: .80, prompt: 'Обери місце для дерева', added: 'На острові виросло дерево' },
   house: { radius: .99, scale: .72, prompt: 'Обери місце для будиночка', added: 'На острові з’явився будиночок' },
-  bunny: { radius: .48, scale: .76, prompt: 'Обери місце для зайчика', added: 'На острів завітав зайчик' },
+  bunny: { radius: .48, scale: .91, prompt: 'Обери місце для зайчика', added: 'На острів завітав зайчик' },
 };
 const originals = [
   ['house', -2.18, -1.41, 1.12, .16, 1.52],
@@ -31,8 +30,8 @@ const originals = [
   ['pine', 2.87, -2.45, .93, .12, .58],
   ['pine', 3.42, -2.86, .73, .27, .45],
   ['lime', -4.76, -.60, .67, .45, .65],
-  ['bunny', -.80, .61, .92, .40, .48],
-  ['bunny', 3.57, .99, .69, .83, .40],
+  ['bunny', -.80, .61, 1.10, .51, .48],
+  ['bunny', 3.57, .99, .91, .76, .40],
 ];
 const decor = [
   [-3.54, -.49, .48], [-.40, -.76, .57], [3.77, -1.89, .53],
@@ -56,24 +55,26 @@ function start() {
   renderer.shadowMap.autoUpdate = false;
   renderer.setClearColor('#8ad2c8');
   renderer.toneMapping = T.NoToneMapping;
-  scene.add(new T.HemisphereLight('#fff6de', '#a5ba94', 1.83));
-  const sun = new T.DirectionalLight('#fff1d3', 1.95);
-  sun.position.set(-4.8, 9, 5.2);
+  scene.add(new T.HemisphereLight('#fff8e8', '#a4b49b', 1.42));
+  const sun = new T.DirectionalLight('#fff0d3', 2.15);
+  sun.position.set(-5.8, 9.5, 4.2);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   Object.assign(sun.shadow.camera, { left: -7.8, right: 7.8, top: 6.3, bottom: -6.3, near: .8, far: 25 });
   sun.shadow.camera.updateProjectionMatrix();
-  sun.shadow.normalBias = .047;
+  sun.shadow.normalBias = .031;
   sun.shadow.bias = -.00015;
   sun.shadow.radius = 3;
   scene.add(sun);
-  const fill = new T.DirectionalLight('#ccecf1', .38);
-  fill.position.set(5, 4, -6);
+  const fill = new T.DirectionalLight('#d4edf1', .54);
+  fill.position.set(6, 4.5, -4);
   scene.add(fill);
 
   const world = buildWorld(scene);
   const models = makeModels();
-  const camera = new T.OrthographicCamera(-1, 1, 1, -1, .1, 80);
+  const controls = makeCamera(canvas, view, tap, requestDraw);
+  const { camera } = controls;
+  const coarsePointer = matchMedia('(pointer: coarse)');
   const objects = new T.Group();
   const markers = new T.Group();
   const markerGeo = new T.RingGeometry(.143, .195, 24);
@@ -94,21 +95,19 @@ function start() {
   scene.add(cursor);
 
   let selected = null;
-  let viewTarget = 0;
-  let angle = .43;
-  let portrait = false;
   let raf = 0;
   let last = 0;
   let time = 0;
   let dirty = true;
   let lost = false;
   let keyX = .48, keyZ = 2.7;
-  let press = null;
+  let slowFrames = 0;
+  let resolutionScale = 1;
 
   function add(type, x, z, size, yaw, radius, custom, appear = false) {
     const y = height(x, z);
     const model = placeModel(models[type], x, y, z, size, yaw);
-    const shadow = world.makeContact(x, z, radius * .97);
+    const shadow = world.makeContact(x, z, radius * (type === 'house' ? 1.30 : 1.11));
     contacts.add(shadow);
     objects.add(model);
     const entry = { model, shadow, type, x, y, z, size, radius, custom, appear: appear && !reducedMotion.matches ? time : null, react: null, lit: false };
@@ -209,6 +208,7 @@ function start() {
   }
 
   function tap(clientX, clientY) {
+    if (lost) return;
     const rect = canvas.getBoundingClientRect();
     screenPoint.set((clientX - rect.left) / rect.width * 2 - 1, 1 - (clientY - rect.top) / rect.height * 2);
     ray.setFromCamera(screenPoint, camera);
@@ -226,26 +226,14 @@ function start() {
     else if (selected) hint.textContent = 'Знайди вільне місце на галявині';
   }
 
-  function placeCamera() {
-    const y = .86;
-    camera.position.set(Math.sin(angle) * 17, y + (portrait ? 14.9 : 12.4), Math.cos(angle) * 17);
-    camera.lookAt(0, y, 0);
-    camera.updateMatrixWorld();
-  }
-
   function resize() {
     const { width, height: boxHeight } = canvas.getBoundingClientRect();
     if (!width || !boxHeight) return;
-    const aspect = width / boxHeight;
-    portrait = aspect < 1;
-    world.setPortrait(portrait);
-    const visibleHeight = Math.max(9.52, 13.4 / aspect);
-    camera.left = -visibleHeight * aspect / 2;
-    camera.right = -camera.left;
-    camera.top = visibleHeight / 2;
-    camera.bottom = -camera.top;
-    camera.updateProjectionMatrix();
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(1700000 / (width * boxHeight))));
+    world.setPortrait(controls.resize(width, boxHeight));
+    const coarse = coarsePointer.matches;
+    const pixelBudget = coarse ? 550000 : 1700000;
+    const ratio = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(pixelBudget / (width * boxHeight)));
+    renderer.setPixelRatio(ratio * resolutionScale);
     renderer.setSize(width, boxHeight, false);
     requestDraw();
   }
@@ -262,13 +250,20 @@ function start() {
       raf = requestAnimationFrame(draw);
       return;
     }
-    const dt = last ? Math.min(.075, (now - last) / 1000) : 0;
+    const elapsed = last ? (now - last) / 1000 : 0;
+    const dt = Math.min(.075, elapsed);
+    if (!isStill && coarsePointer.matches && resolutionScale > .69) {
+      slowFrames = elapsed > .054 ? slowFrames + 1 : Math.max(0, slowFrames - 2);
+      if (slowFrames >= 12) {
+        resolutionScale = Math.max(.69, resolutionScale * .83);
+        slowFrames = 0;
+        resize();
+      }
+    }
     last = now;
     if (!isStill) time += dt;
-    const target = (portrait ? .52 : .43) + viewTarget * .24;
-    angle = isStill ? target : T.MathUtils.damp(angle, target, 7, dt);
     if (dirty || !isStill) {
-      placeCamera();
+      controls.update(dt, isStill);
       world.animate(isStill ? 0 : time);
       for (const entry of entries) {
         const { model, type, size, y, x, z, appear } = entry;
@@ -284,16 +279,26 @@ function start() {
         const p = entry.react === null || isStill ? 1 : Math.min(1, (time - entry.react) / .69);
         if (p === 1) entry.react = null;
         const bounce = Math.sin(p * Math.PI);
-        if (type === 'bunny') model.position.y = y + bounce * .49;
-        else if (type !== 'house') {
-          const breeze = isStill ? 0 : .016 * Math.sin(time * 1.08 + x + z);
+        if (type === 'bunny') {
+          const phase = time * 1.65 + x * 1.4 + z;
+          const idleCycle = (time + (x + 6) * .88) % 10.8;
+          const littleHop = isStill || p < 1 || appear !== null || idleCycle > .62
+            ? 0 : Math.sin(Math.PI * idleCycle / .62);
+          const lift = bounce * .49 + littleHop * .22;
+          const breath = isStill ? 0 : .018 * Math.sin(phase);
+          model.position.y = y + lift;
+          model.rotation.x = -lift * .17 + breath;
+          model.scale.y = model.scale.x * (1 + breath + lift * .12);
+        } else if (type !== 'house') {
+          const breeze = isStill ? 0 : .018 * Math.sin(time * .84 + x + z);
+          model.rotation.x = isStill ? 0 : .012 * Math.sin(time * .66 - z);
           model.rotation.z = breeze + Math.sin(p * Math.PI * 3) * bounce * .14;
         }
       }
       renderer.render(scene, camera);
       dirty = false;
     }
-    if (!isStill) raf = requestAnimationFrame(draw);
+    if (!isStill && !raf) raf = requestAnimationFrame(draw);
   }
 
   function stopFrames() {
@@ -310,26 +315,6 @@ function start() {
     button.disabled = false;
     button.addEventListener('click', () => setSelected(selected === button.dataset.piece ? null : button.dataset.piece));
   }
-  function rotate(direction) {
-    viewTarget = T.MathUtils.clamp(viewTarget + direction, -1, 1);
-    left.disabled = viewTarget === -1;
-    right.disabled = viewTarget === 1;
-    requestDraw();
-  }
-  left.addEventListener('click', () => rotate(-1));
-  right.addEventListener('click', () => rotate(1));
-
-  canvas.addEventListener('pointerdown', event => {
-    if (lost || !event.isPrimary || event.button !== 0) return;
-    press = { id: event.pointerId, x: event.clientX, y: event.clientY };
-    canvas.setPointerCapture(event.pointerId);
-  });
-  canvas.addEventListener('pointerup', event => {
-    if (press?.id !== event.pointerId) return;
-    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < 16) tap(event.clientX, event.clientY);
-    press = null;
-  });
-  canvas.addEventListener('lostpointercapture', () => { press = null; });
   canvas.addEventListener('keydown', event => {
     const directions = { ArrowLeft: [-.27, 0], ArrowRight: [.27, 0], ArrowUp: [0, -.27], ArrowDown: [0, .27] };
     if (Object.hasOwn(directions, event.key)) {
@@ -358,6 +343,7 @@ function start() {
       if (!entry.custom) continue;
       objects.remove(entry.model);
       contacts.remove(entry.shadow);
+      entry.shadow.geometry.dispose();
       entry.model.userData.windows?.dispose();
       entries.splice(i, 1);
     }
@@ -372,6 +358,7 @@ function start() {
 
   new ResizeObserver(resize).observe(canvas);
   reducedMotion.addEventListener('change', requestDraw);
+  coarsePointer.addEventListener('change', resize);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopFrames();
     else requestDraw();

@@ -17,13 +17,14 @@ button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 3px solid
 .game {
   display: grid;
   grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
+  grid-template-areas: "header" "scene" "dock";
   height: 100dvh;
   max-width: 1600px;
   margin-inline: auto;
   padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   gap: 10px;
 }
-.top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.top { grid-area: header; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
 .heading { display: flex; align-items: center; gap: 13px; }
 .heading img { display: block; flex: none; }
 h1 { margin: 0; font: 700 clamp(25px, 3.35vw, 53px)/.99 Georgia, serif; letter-spacing: -.045em; }
@@ -49,6 +50,7 @@ h1 { margin: 0; font: 700 clamp(25px, 3.35vw, 53px)/.99 Georgia, serif; letter-s
 .back { justify-self: start; }
 .reset { justify-self: end; }
 .stage {
+  grid-area: scene;
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -60,10 +62,23 @@ h1 { margin: 0; font: 700 clamp(25px, 3.35vw, 53px)/.99 Georgia, serif; letter-s
 .stage::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 54px #30797821; }
 canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
 canvas:focus-visible { outline-offset: -4px; }
-.view { position: absolute; z-index: 1; right: 14px; bottom: 14px; display: flex; gap: 7px; }
-.view .control { padding: 0; min-width: 58px; min-height: 56px; background: #fffcf0ed; box-shadow: 0 3px 0 #30666032; }
+.view {
+  grid-area: scene;
+  align-self: end;
+  justify-self: end;
+  margin: 0 14px 14px 0;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+}
+.view-pair { display: flex; gap: 1px; border-radius: 17px; background: #d4e2cf; }
+.view .control { padding: 0; min-width: 52px; min-height: 50px; border-radius: 17px; background: #fffcf5; box-shadow: 0 2px 0 #30666032; }
+.view-pair .control:first-child { border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+.view-pair .control:last-child { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+.view .control:disabled { opacity: 1; color: #859283; background: #f0f2e6; box-shadow: none; }
+#fit { background: #e6f0dd; }
 .loading { position: absolute; margin: 0; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(85%, 24rem); text-align: center; padding: 14px; border-radius: 16px; background: var(--paper); }
-.dock { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
+.dock { grid-area: dock; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
 .dock p { margin: 0; text-align: center; font-size: 14px; line-height: 1.2; font-weight: 700; }
 .tools { display: flex; gap: 10px; }
 .piece {
@@ -107,14 +122,23 @@ dialog p { line-height: 1.45; font-size: 15px; }
   .control { min-width: 48px; padding: 0 8px; }
   .control span { display: none; }
   .stage { border-radius: 25px; }
-  .view .control { min-width: 56px; }
   .tools { width: min(100%, 390px); gap: 7px; }
   .piece { flex: 1; min-width: 0; flex-direction: column; gap: 1px; padding: 4px 3px 7px; font-size: 12px; }
   .piece svg { width: 35px; height: 35px; }
 }
+@media (max-width: 600px) and (orientation: portrait) {
+  .game {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "header" "scene" "camera" "dock";
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    gap: 12px;
+  }
+  .view { grid-area: camera; justify-self: center; margin: 0; }
+  .view .control { min-width: 53px; }
+}
 @media (max-height: 510px) and (orientation: landscape) {
   .game { grid-template: auto minmax(0, 1fr) / minmax(0, 1fr) 126px; gap: 8px; }
-  .top { grid-column: 1 / -1; }
+  .game { grid-template-areas: "header header" "scene dock"; }
   .heading img { width: 37px; height: 37px; }
   h1 { font-size: clamp(24px, 4vw, 35px); }
   .top .control { min-height: 44px; }
@@ -124,8 +148,11 @@ dialog p { line-height: 1.45; font-size: 15px; }
   .tools { width: 100%; flex-direction: column; gap: 7px; }
   .piece { min-width: 0; min-height: 62px; gap: 5px; padding: 3px 6px; flex-direction: row; font-size: 12px; }
   .piece svg { width: 30px; height: 30px; }
-  .view { right: 8px; bottom: 8px; }
-  .view .control { min-width: 50px; min-height: 46px; border-radius: 14px; }
+  .view { justify-self: start; align-self: center; flex-direction: column; margin: 0 0 0 8px; gap: 5px; }
+  .view .control { min-width: 44px; min-height: 44px; border-radius: 14px; }
+  .view-pair { flex-direction: column; border-radius: 14px; }
+  .view-pair .control:first-child { border-radius: 14px 14px 5px 5px; }
+  .view-pair .control:last-child { border-radius: 5px 5px 14px 14px; }
 }
 @media (max-height: 360px) and (orientation: landscape) {
   .piece { min-height: 50px; flex-basis: 50px; }

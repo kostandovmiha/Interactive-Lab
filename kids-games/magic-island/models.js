@@ -2,7 +2,7 @@ import * as T from './vendor/three.module.min.js';
 
 const palette = new Map();
 export function paint(color) {
-  if (!palette.has(color)) palette.set(color, new T.MeshStandardMaterial({ color, roughness: .86 }));
+  if (!palette.has(color)) palette.set(color, new T.MeshStandardMaterial({ name: color, color, roughness: .86 }));
   return palette.get(color);
 }
 
@@ -14,7 +14,8 @@ export function random(seed) {
 }
 
 const sphere = new T.SphereGeometry(1, 20, 14);
-const smallSphere = new T.SphereGeometry(1, 9, 6);
+const smallSphere = new T.SphereGeometry(1, 8, 5);
+const tinySphere = new T.SphereGeometry(1, 6, 4);
 const pebble = new T.IcosahedronGeometry(1, 1);
 const crown = new T.IcosahedronGeometry(1, 3);
 const points = crown.attributes.position;
@@ -55,8 +56,12 @@ const box = new T.ExtrudeGeometry(rounded, {
   depth: .84, bevelEnabled: true, bevelSize: .045, bevelThickness: .08, bevelSegments: 2, curveSegments: 3,
 });
 box.translate(0, 0, -.42);
+const smallBox = new T.ExtrudeGeometry(rounded, {
+  depth: .84, bevelEnabled: true, bevelSize: .045, bevelThickness: .08, bevelSegments: 1, curveSegments: 1,
+});
+smallBox.translate(0, 0, -.42);
 const cylinder = new T.CylinderGeometry(.82, 1, 1, 10);
-const torus = new T.TorusGeometry(1, .11, 8, 24);
+const paintedSurface = new T.MeshStandardMaterial({ vertexColors: true, roughness: .86 });
 
 function mesh(parent, geometry, color, x, y, z, sx, sy, sz) {
   const item = new T.Mesh(geometry, typeof color === 'string' ? paint(color) : color);
@@ -66,11 +71,13 @@ function mesh(parent, geometry, color, x, y, z, sx, sy, sz) {
   return item;
 }
 export function oval(parent, color, x, y, z, sx, sy, sz) {
-  const geometry = Math.max(sx, sy, sz) < .145 ? smallSphere : sphere;
+  const size = Math.max(sx, sy, sz);
+  const geometry = size < .085 ? tinySphere : size < .145 ? smallSphere : sphere;
   return mesh(parent, geometry, color, x, y, z, sx, sy, sz);
 }
 export function block(parent, color, x, y, z, sx, sy, sz) {
-  return mesh(parent, box, color, x, y, z, sx, sy, sz);
+  const geometry = Math.max(sx, sy, sz) < .8 && Math.min(sx, sy, sz) <= .16 ? smallBox : box;
+  return mesh(parent, geometry, color, x, y, z, sx, sy, sz);
 }
 export function rock(parent, color, x, y, z, sx, sy, sz) {
   return mesh(parent, pebble, color, x, y, z, sx, sy, sz);
@@ -93,31 +100,41 @@ export function line(parent, color, points, thickness) {
   return mesh(parent, new T.TubeGeometry(curve, 12, thickness, 6), color, 0, 0, 0, 1, 1, 1);
 }
 
-// Bake static model parts into one draw per material; animated models reuse these buffers.
+// Flat-tinted parts share one material and keep their individual colors as vertex data.
 export function bake(source, { shadow = true } = {}) {
   source.updateMatrixWorld(true);
   const surfaces = new Map();
   const vertex = new T.Vector3(), direction = new T.Vector3(), normalMatrix = new T.Matrix3();
   source.traverse(item => {
     if (!item.isMesh) return;
-    if (!surfaces.has(item.material)) surfaces.set(item.material, { positions: [], normals: [] });
-    const { positions, normals } = surfaces.get(item.material);
+    const hasPaint = palette.get(item.material.name) === item.material;
+    const material = hasPaint ? paintedSurface : item.material;
+    if (!surfaces.has(material)) surfaces.set(material, { positions: [], normals: [], colors: [], indices: [] });
+    const { positions, normals, colors, indices } = surfaces.get(material);
     const { position, normal } = item.geometry.attributes;
-    const index = item.geometry.index;
+    const color = item.material.color;
     normalMatrix.getNormalMatrix(item.matrixWorld);
-    for (let i = 0; i < (index?.count ?? position.count); i++) {
-      const k = index ? index.getX(i) : i;
+    for (let k = 0; k < position.count; k++) {
       vertex.fromBufferAttribute(position, k).applyMatrix4(item.matrixWorld);
       direction.fromBufferAttribute(normal, k).applyNormalMatrix(normalMatrix);
       positions.push(vertex.x, vertex.y, vertex.z);
       normals.push(direction.x, direction.y, direction.z);
+      if (hasPaint) colors.push(color.r, color.g, color.b);
+    }
+    // Keep indexed spheres indexed so their shared vertices are transformed once.
+    const offset = positions.length / 3 - position.count;
+    const index = item.geometry.index;
+    for (let i = 0; i < (index?.count ?? position.count); i++) {
+      indices.push(offset + (index ? index.getX(i) : i));
     }
   });
   const model = new T.Group();
-  for (const [material, { positions, normals }] of surfaces) {
+  for (const [material, { positions, normals, colors, indices }] of surfaces) {
     const geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
+    if (colors.length) geo.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
+    geo.setIndex(indices);
     const item = new T.Mesh(geo, material);
     item.castShadow = shadow;
     item.receiveShadow = true;
@@ -274,27 +291,27 @@ function cottage() {
 
 function rabbit() {
   const pet = new T.Group();
-  const fur = '#fff0df', pink = '#e8a29e', cocoa = '#58403e';
+  const fur = '#fff2e4', pink = '#df9696', cocoa = '#513637';
   oval(pet, fur, 0, .36, -.06, .29, .36, .27);
   oval(pet, '#f5d9c5', 0, .31, .112, .20, .195, .135);
-  oval(pet, fur, 0, .64, .101, .308, .268, .259);
+  oval(pet, fur, 0, .66, .114, .335, .287, .265);
   oval(pet, '#fff5df', 0, .20, -.29, .133, .128, .135);
   for (const side of [-1, 1]) {
     const ear = new T.Group();
-    ear.position.set(side * .134, .87, .067);
-    ear.rotation.z = side * -.23;
+    ear.position.set(side * .145, .91, .084);
+    ear.rotation.z = side * -.29;
     ear.rotation.x = side * .10;
-    oval(ear, fur, 0, .145, 0, .102, .244, .078);
-    oval(ear, pink, 0, .158, .054, .056, .178, .025);
+    oval(ear, fur, 0, .145, 0, .111, .257, .084);
+    oval(ear, pink, 0, .158, .054, .066, .184, .029);
     pet.add(ear);
     oval(pet, '#f6e1cb', side * .163, .12, .13, .122, .099, .181);
     oval(pet, fur, side * .163, .34, .177, .083, .133, .085).rotation.z = side * -.24;
-    oval(pet, cocoa, side * .125, .683, .327, .037, .044, .027);
-    oval(pet, '#fff8ed', side * .125 - .009, .695, .349, .010, .010, .008);
-    oval(pet, pink, side * .176, .590, .308, .049, .026, .014);
-    oval(pet, '#fff5e8', side * .040, .575, .337, .085, .052, .036);
+    oval(pet, cocoa, side * .131, .715, .355, .047, .052, .029);
+    oval(pet, '#fff8ed', side * .131 - .011, .730, .380, .013, .013, .009);
+    oval(pet, pink, side * .188, .610, .329, .051, .031, .019);
+    oval(pet, '#fff5e8', side * .045, .586, .356, .093, .056, .041);
   }
-  oval(pet, '#b77c78', 0, .609, .369, .044, .028, .025);
+  oval(pet, '#b77c78', 0, .628, .396, .050, .031, .027);
   return bake(pet);
 }
 

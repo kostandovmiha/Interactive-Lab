@@ -57,8 +57,13 @@ function land() {
   const grass = new T.Color('#87ad70'), moss = new T.Color('#65975f'), pale = new T.Color('#a5ba78');
   const sand = new T.Color('#f5d79f'), wet = new T.Color('#cfad76'), trail = new T.Color('#d9bc86');
   const seam = new T.Color('#b8b57a'), basin = new T.Color('#a6ae71');
+  const groundShade = [
+    [-3.55, -.59, .79], [-.39, -.77, .68], [3.72, -1.85, .79],
+    [-4.94, -.62, .73], [-4.99, 1.19, .56], [-3.93, 2.87, .48],
+    [4.50, 1.82, .67], [4.43, -2.20, .73],
+  ];
   const color = new T.Color();
-  const segments = 160, rings = 72;
+  const segments = 144, rings = 64;
   for (let ring = 0; ring <= rings; ring++) {
     const rad = farRim * Math.max(ring / rings, .00001);
     for (let i = 0; i < segments; i++) {
@@ -73,7 +78,13 @@ function land() {
       const p = pondEdge(x, z);
       color.lerp(basin, (1 - smooth(p, .98, 1.22)) * .86);
       color.lerp(trail, (1 - smooth(pathDistance(x, z) + .029 * Math.sin(x * 7 + z * 4), .20, .43)) * .86);
-      color.multiplyScalar(1 + grain * .029);
+      let contact = 0;
+      for (const [sx, sz, radius] of groundShade) {
+        const distance = ((x - sx) ** 2 + (z - sz) ** 2) / (radius * radius);
+        contact = Math.max(contact, Math.max(0, 1 - distance) ** 2);
+      }
+      const pondBank = 1 - smooth(Math.abs(p - 1.02), .015, .18);
+      color.multiplyScalar(1 + grain * .037 - contact * .20 - pondBank * .052);
       positions.push(x, height(x, z), z);
       colors.push(color.r, color.g, color.b);
       if (ring < rings) {
@@ -107,6 +118,7 @@ const waterFragment = `
   uniform vec3 turquoise;
   uniform vec3 shallow;
   uniform vec3 foam;
+  uniform vec2 boatPosition;
   varying vec2 vWorld;
 
   float hash(vec2 p) {
@@ -125,32 +137,41 @@ const waterFragment = `
   }
   void main() {
     vec2 p = vWorld;
-    vec2 q = p / vec2(6.25, 4.48);
-    float a = atan(q.y, q.x);
-    float shore = 1. + .070*sin(3.*a+.38) + .035*cos(5.*a-.51) + .026*sin(6.*a+1.9);
-    float r = length(q) / shore;
     float wave = sin(p.x*1.25 + p.y*1.42 + time*.32) * cos(p.y*.78 - p.x*.50 - time*.27);
-    float broad = sin(p.y*.30 - p.x*.18 + .36) * .08;
-    vec3 col = mix(ocean, turquoise, (1. - smoothstep(1., 2.95, r))*.72 + broad + .10);
-    col = mix(col, shallow, (1. - smoothstep(1.00, 1.37, r))*.76);
-    float ring = r + .008*sin(13.*a-time*.76) + .006*sin(23.*a+time*.57);
-    float streak = .55 + .45*sin(7.*a + sin(7.*a+1.) + time*.54);
-    float lip = (1.-smoothstep(.005,.017,abs(ring-1.038))) * (.52 + streak*.44);
-    float echo = (1.-smoothstep(.003,.012,abs(ring-1.124-.013*sin(time*.49)))) * streak*.38;
-    float glint = glints(vec2(p.x*.88+p.y*.23,p.y*1.55-p.x*.27), .52)
-      + glints(vec2(p.x*.52-p.y*.29+4.7,p.y*1.26+p.x*.15), .36)*.56;
-    col = mix(col, foam, max(lip*.70,echo)*.82 + glint*mix(.25,.16,smoothstep(1.2,3.9,r)));
-    col *= 1. + wave*.042;
-
+    float glint = glints(vec2(p.x*.88+p.y*.23,p.y*1.55-p.x*.27), .52);
+    vec3 col;
     if (small) {
       vec2 pq = (p - vec2(1.95,-.32)) / vec2(1.59,1.01);
       float pa = atan(pq.y,pq.x);
       float pr = length(pq) / (1. + .108*sin(3.*pa+1.14) + .045*cos(5.*pa));
       if (pr > 1.22) discard;
-      col = mix(ocean, turquoise, .54 + wave*.22);
-      col = mix(col, shallow, smoothstep(.53,1.15,pr)*.64);
+      col = mix(ocean, turquoise, .49 + wave*.19);
+      col = mix(col, shallow, smoothstep(.48,1.15,pr)*.68);
       float highlight = (1. - smoothstep(.006,.035,abs(pr-.975-wave*.021)))*.47;
       col = mix(col, foam, glint*.43+highlight);
+    } else {
+      vec2 q = p / vec2(6.25, 4.48);
+      float a = atan(q.y, q.x);
+      float shore = 1. + .070*sin(3.*a+.38) + .035*cos(5.*a-.51) + .026*sin(6.*a+1.9);
+      float r = length(q) / shore;
+      float broad = sin(p.y*.30 - p.x*.18 + .36) * .09;
+      col = mix(ocean, turquoise, (1. - smoothstep(1., 2.95, r))*.72 + broad + .10);
+      col = mix(col, shallow, (1. - smoothstep(1.00, 1.36, r))*.78);
+      float underwaterShelf = (1. - smoothstep(1.00,1.18,r)) * (.12 + .10 * cos(a+.38));
+      col *= 1. - underwaterShelf;
+      float ring = r + .008*sin(13.*a-time*.76) + .006*sin(23.*a+time*.57);
+      float streak = .55 + .45*sin(7.*a + sin(7.*a+1.) + time*.54);
+      float lip = (1.-smoothstep(.005,.017,abs(ring-1.038))) * (.52 + streak*.44);
+      float echo = (1.-smoothstep(.003,.012,abs(ring-1.124-.013*sin(time*.49)))) * streak*.38;
+      glint += glints(vec2(p.x*.52-p.y*.29+4.7,p.y*1.26+p.x*.15), .36) * .56;
+      col = mix(col, foam, max(lip*.73,echo)*.82 + glint*mix(.25,.14,smoothstep(1.2,3.9,r)));
+      col *= 1. + wave*.044;
+
+      vec2 b = p - boatPosition;
+      float ripple = length(vec2(dot(b,vec2(.90,.44)) * 1.7, dot(b,vec2(-.44,.90))));
+      float wake = (1. - smoothstep(.01,.065,abs(ripple-.68-.09*sin(time*1.4))))
+        * (.4+.23*sin(b.x*9.)) * .34;
+      col = mix(col * (1. - .14 * (1. - smoothstep(.16,.62,ripple))), foam, wake);
     }
     gl_FragColor = vec4(col, 1.);
     #include <tonemapping_fragment>
@@ -163,7 +184,7 @@ function water(small) {
     vertexShader: waterVertex,
     fragmentShader: waterFragment,
     uniforms: {
-      time: { value: 0 }, small: { value: small },
+      time: { value: 0 }, small: { value: small }, boatPosition: { value: new T.Vector2(4.85, 4.15) },
       ocean: { value: new T.Color(small ? '#4c9f9a' : '#7bc8c3') },
       turquoise: { value: new T.Color(small ? '#72c8b4' : '#81d8c8') },
       shallow: { value: new T.Color(small ? '#afdcc0' : '#b7e4ca') },
@@ -332,24 +353,30 @@ function cloud() {
 }
 
 function contactLayer() {
-  const geometry = new T.PlaneGeometry(2, 2);
   const material = new T.ShaderMaterial({
     transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
-    uniforms: { ink: { value: new T.Color('#374f37') } },
+    uniforms: { ink: { value: new T.Color('#3d5341') } },
     vertexShader: `varying vec2 local; void main() {
       local = uv * 2. - 1.;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
     }`,
     fragmentShader: `uniform vec3 ink; varying vec2 local; void main() {
-      gl_FragColor = vec4(ink, .25 * pow(max(0., 1. - dot(local, local)), 2.25));
+      float r = dot(local, local);
+      float contact = .29 * pow(max(0., 1. - r), 1.7) + .14 * exp(-8. * r);
+      gl_FragColor = vec4(ink, contact);
       #include <colorspace_fragment>
     }`,
   });
   return (x, z, size) => {
+    const geometry = new T.PlaneGeometry(2 * size, 1.58 * size, 9, 8);
+    geometry.rotateX(-Math.PI / 2);
+    const position = geometry.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      const worldX = x + position.getX(i), worldZ = z + position.getZ(i);
+      position.setY(i, height(worldX, worldZ) + .015);
+    }
     const mesh = new T.Mesh(geometry, material);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(x, height(x, z) + .033, z);
-    mesh.scale.set(size, size * .8, 1);
+    mesh.position.set(x, 0, z);
     return mesh;
   };
 }
@@ -372,8 +399,9 @@ export function buildWorld(scene) {
   function animate(t) {
     sea.material.uniforms.time.value = t;
     pool.material.uniforms.time.value = t;
-    boat.position.set(4.85 + .05 * Math.sin(t * .53), -.145 + .03 * Math.sin(t * 1.63), 4.15);
-    boat.rotation.set(.035 * Math.sin(t * 1.63), -.45, .08 * Math.sin(t * 1.48));
+    boat.position.set(4.85 + .11 * Math.sin(t * .53), -.145 + .041 * Math.sin(t * 1.36), 4.15 + .08 * Math.sin(t * .45));
+    boat.rotation.set(.046 * Math.sin(t * 1.36), -.45 + .075 * Math.sin(t * .64), .075 * Math.sin(t * 1.54));
+    sea.material.uniforms.boatPosition.value.set(boat.position.x, boat.position.z);
     const phase = t * .24;
     bird.position.set(pondX + .56 * Math.cos(phase), pondY + .015 * Math.sin(t * 3.3), pondZ + .36 * Math.sin(phase));
     bird.rotation.y = Math.atan2(-.36 * Math.cos(phase), -.56 * Math.sin(phase));
@@ -382,7 +410,7 @@ export function buildWorld(scene) {
   return {
     terrain, makeContact, animate,
     setPortrait(portrait) {
-      clouds.forEach(({ object }, i) => { object.visible = i < 3 || portrait; });
+      clouds.forEach(({ object }, i) => { object.visible = portrait ? i >= 3 : i < 3; });
     },
   };
 }
